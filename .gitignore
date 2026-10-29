@@ -1,0 +1,21 @@
+# Compiler outputs
+*.out
+*.o
+*.dSYM/
+fact
+calc0
+calc1
+calc2
+calc3
+sample0
+sample1
+
+# Python cache
+__pycache__/
+*.py[cod]
+.venv/
+
+# Editor temporary files and Windows download metadata
+*.swp
+*~
+*:Zone.Identifier
