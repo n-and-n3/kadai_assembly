@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${fileDirname}/${fileBasenameNoExtension}",
-      "args": [],
+      "args": ["${input:expression}"],
       "stopAtEntry": true,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -21,6 +21,14 @@
         }
       ],
       "preLaunchTask": "C/C++: gcc アクティブなファイルのビルド"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "expression",
+      "type": "promptString",
+      "description": "argv[1] に渡す式を入力",
+      "default": "1+2="
     }
   ]
 }

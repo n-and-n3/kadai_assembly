@@ -1,10 +1,11 @@
 {
   "code-runner.runInTerminal": true,
+  "code-runner.preserveFocus": false,
   "code-runner.saveFileBeforeRun": true,
   "code-runner.ignoreSelection": true,
   "code-runner.fileDirectoryAsCwd": true,
   "code-runner.showRunIconInEditorTitleMenu": true,
   "code-runner.executorMap": {
-    "c": "cd \"$dir\" && gcc -Wall -Wextra -g -O0 \"$fileName\" -o \"$fileNameWithoutExt\" && \"./$fileNameWithoutExt\""
+    "c": "bash \"$workspaceRoot/.vscode/run-c.sh\" \"$fullFileName\""
   }
 }

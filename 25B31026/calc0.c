@@ -45,10 +45,15 @@ int eval(char op, int x, int y){
 // ほんへ
 int main (int argc, char *argv[])
 {
-    if(argc!=2){printf("%s","don't match arguments\n");return 1;}
+    if (argc != 2) {
+        printf("don't match arguments.\n");
+        return 1;
+    }
+    char *p = argv[1];
 
-    char last_op = '+', *p = argv[1];
-    int  memory = 0, temporary = 0, current = 0;
+    char last_op = '+';
+
+    int  memory = 0, display = 0, current = 0;
 
     while (*p++ != NULL) {
         char cmd = *p;
@@ -80,6 +85,7 @@ int main (int argc, char *argv[])
             last_op = cmd;
             break;
         case '=':
+            temporary = eval(last_op,temporary,current);
             printf("%d\n", temporary);
             break;
         default:
@@ -89,4 +95,3 @@ int main (int argc, char *argv[])
     }
 
 }
-
