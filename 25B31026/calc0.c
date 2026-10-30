@@ -47,7 +47,7 @@ int mul(int x, int y){
     }
 }
 int div(int x, int y){
-    int ret = x/y;
+    int ret = (y != 0 ? x/y : 0);
     bool carry = (y == 0);
     if (carry){
         hasError = true;

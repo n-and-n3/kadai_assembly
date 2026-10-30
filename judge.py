@@ -28,6 +28,7 @@ for item in testPath.iterdir():
             test_in, test_out = testcase.split(",")
         except:
             print("Can't parse testcase:", testcase)
+            continue
         test_out.strip()
         result = subprocess.run(
             ["./calc0.out", test_in],
