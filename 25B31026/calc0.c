@@ -16,6 +16,22 @@ void printi(int tmp){
 bool hasError = false;
 
 // 関数定義
+bool is_memory(char x){
+    return x == 'C' || x == 'R' || x == 'P' || x == 'M';
+}
+
+bool is_number(char x){
+    return x == 'S' || ('0' <= x && x <= '9');
+}
+
+bool is_operand(char x){
+    return x == '+' || x == '-' || x == '*' || x == '/';
+}
+
+bool is_equal(char x){
+    return x == '=';
+}
+
 int add(int x, int y){
     int ret;
     bool carry = __builtin_add_overflow(x,y,&ret);
