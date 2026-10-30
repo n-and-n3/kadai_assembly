@@ -53,45 +53,59 @@ int main (int argc, char *argv[])
 
     char last_op = '+';
 
-    int  memory = 0, display = 0, current = 0;
+    int memory = 0; // メモリーの値
+    int res = 0; // レジスタの値
+    int current = 0; // 今入力されている値
 
-    while (*p++ != NULL) {
-        char cmd = *p;
+    while (1) {
+        if (*p == NULL){break;}
+        char cmd = *p++;
+
         switch (cmd)
         {
         case 'C':  // Memory Clear
             memory = 0;
             break;
         case 'R':  // Recall Memory
-            current = memory;
+            res = memory;
             break;
-        case 'P':
-            memory += current;
+        case 'P':  // Memory Plus
+            memory += eval(last_op,res,current);
+            res = 0;
+            last_op = '+';
             current = 0;
             break;
-        case 'M':
-            memory -= current;
+        case 'M':  // Memory Minus
+            memory -= eval(last_op,res,current);
+            res = 0;
+            last_op = '+';
+            
             current = 0;
             break;
-        case 'S':
+        case 'S':  // Sign Inv
             current *= -1;
             break;
         case '+':
         case '-':
         case '*':
         case '/':
-            temporary = eval(last_op,temporary,current);
+            res = eval(last_op,res,current);
             current = 0;
             last_op = cmd;
             break;
-        case '=':
-            temporary = eval(last_op,temporary,current);
-            printf("%d\n", temporary);
+        case '=': // eval
+            res = eval(last_op,res,current);
             break;
-        default:
-            temporary = 10*temporary + (cmd-'0');
+        default: // digit
+            if (current >= 0){
+                current = 10*current + (cmd-'0');
+            } else {
+                current = 10*current - (cmd-'0');
+            }
             break;
         }
     }
 
+    // 最後に内部状態（？、レジスタの状態？）を出力
+    printf("%d\n", res);
 }
