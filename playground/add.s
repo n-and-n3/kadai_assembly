@@ -8,8 +8,6 @@ cur:
     .zero 4
 hasError:
     .zero 1
-states:
-    .zero 1
 
 .data
 op:
@@ -18,6 +16,10 @@ last_op:
     .byte '+'
 
 .text
+
+put_error:
+    movb $1,hasError(%rip)
+    ret
 
 ##  (%dil : char) -> %al : bool
 is_memory:
@@ -92,47 +94,172 @@ reset:
     ret
 
 ## (%edi : int, %esi : int) -> %eax
-build_in_add:
+my_add:
     movl %edi,%eax
     addl %esi,%eax
-    jo .L_build_in_add
+    jo .L_my_add
     ret
-    .L_build_in_add:
-    movb $1,hasError(%rip)
+    .L_my_add:
+    call put_error
     ret
 
 ## (%edi : int, %esi : int) -> %eax
-build_in_sub:
+my_sub:
     movl %edi,%eax
     subl %esi,%eax
-    jo .L_build_in_sub
+    jo .L_my_sub
     ret
-    .L_build_in_sub:
-    movb $1,hasError(%rip)
+    .L_my_sub:
+    call put_error
     ret
 
 ## (%edi : int, %esi : int) -> %eax
-build_in_mul:
+my_mul:
     movl %edi,%eax
     imul %esi,%eax
-    jo .L_build_in_mul
+    jo .L_my_mul
     ret
-    .L_build_in_mul:
-    movb $1,hasError(%rip)
+    .L_my_mul:
+    call put_error
     ret
 
 ## (%edi : int, %esi : int) -> %eax
-build_in_div:
+my_div:
     testl %esi,%esi
-    jz .L_build_in_div
+    jz .L_my_div
     movl %edi,%eax
     cqto
     idiv %esi
     ret
-    .L_build_in_div:
-    movb $1,hasError(%rip)
+    .L_my_div:
+    call put_error
     movl $0,%eax
     ret
+
+## (%edi : int, %esi : int, %dl : char) -> %eax : int
+eval:
+    cmpb $'+',%dl
+    je .L_eval1
+    cmpb $'-',%dl
+    je .L_eval2
+    cmpb $'*',%dl
+    je .L_eval3
+    cmpb $'/',%dl
+    je .L_eval4
+
+    call put_error
+    ret
+
+    .L_eval1:
+        call my_add
+    ret
+    .L_eval2:
+        call my_sub
+    ret
+    .L_eval3:
+        call my_mul
+    ret
+    .L_eval4:
+        call my_div
+    ret
+
+## (%edi : char) -> 
+op_memory:
+    cmpb $'R',%dl
+    je .L_op_memory1
+    cmpb $'C',%dl
+    je .L_op_memory2
+    cmpb $'P',%dl
+    je .L_op_memory3
+    cmpb $'M',%dl
+    je .L_op_memory4
+
+    call put_error
+    ret
+
+    .L_op_memory1:
+        movl memory(%rip), %eax
+        movl %eax, res(%rip)
+    ret
+    .L_op_memory2:
+        movl $0, memory(%rip)
+    ret
+    .L_op_memory3:
+        movl res(%rip),%edi
+        movl cur(%rip),%esi
+        movb $'+',%dl
+        call eval
+        movl memory(%rip),%edi
+        movl %eax,%esi
+        call my_add
+        movl %eax,memory(%rip)
+        call reset
+        movl $0, res(%rip)
+    ret
+    .L_op_memory4:
+        movl res(%rip),%edi
+        movl cur(%rip),%esi
+        movb $'-',%dl
+        call eval
+        movl memory(%rip),%edi
+        movl %eax,%esi
+        call my_add
+        movl %eax,memory(%rip)
+        call reset
+        movl $0, res(%rip)
+    ret
+
+## (%edi : int, %sil : char) -> %eax : int
+concat:
+    cmpb $'S',%sil
+    je .L_concat1
+    cmpl $0,%edi
+    jge .L_concat2
+    jmp .L_concat3
+
+    .L_concat1:
+        movl $-1,%esi
+        call my_mul
+    ret
+    .L_concat2:
+        movzbl %sil, %ebx
+        subl $'0', %ebx
+        movl $10,%esi
+        call my_mul
+        movl %eax,%edi
+        movl %ebx,%esi
+        call my_add
+    ret
+    .L_concat3:
+        movzbl %sil, %ebx
+        subl $'0', %ebx
+        movl $10,%esi
+        call my_mul
+        movl %eax,%edi
+        movl %ebx,%esi
+        call my_sub
+    ret
+
+## () -> 
+display:
+    leaq .LC1(%rip), %rdi
+    cmpb $0, hasError(%rip)
+    jg .L_display
+        leaq .LC0(%rip), %rdi
+    .L_display:
+    movl    res(%rip), %esi
+    movl    $0, %eax
+    call    printf
+    ret
+
+
+.section .rodata
+.LC0:
+    .string "E\n"
+.LC1:
+    .string "%d\n"
+
+
 
 .global main
 .text
@@ -141,20 +268,74 @@ main:
     pushq   %rbp
     movq    %rsp, %rbp
 
-    # ここからadd
-        movl    $13,%edi
-        movl    $7,%esi
-        call    build_in_div
+    # 12S34+56= を計算する
 
-    # ここからprintf
-        # 引数のセット
-        leaq    .LC0(%rip), %rdi   # フォーマット文字列のアドレスを与える
-        movl    %eax, %esi
-        movl    $0, %eax
+    # 1
+    movl cur(%rip),%eax
+    movb $'1',%sil
+    call concat
+    movl %eax,cur(%rip)
 
-        # 関数呼び出し
-        call    printf
+    # 2
+    movl cur(%rip),%eax
+    movb $'2',%sil
+    call concat
+    movl %eax,cur(%rip)
 
+    # S
+    movl cur(%rip),%eax
+    movb $'S',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # 3
+    movl cur(%rip),%eax
+    movb $'3',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # 4
+    movl cur(%rip),%eax
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # +
+    movb $'+',op(%rip)
+
+    # 5
+    movl res(%rip),%eax
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+    call reset
+
+    movl cur(%rip),%eax
+    movb $'5',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # 6
+    movl cur(%rip),%eax
+    movb $'6',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # =
+    movl res(%rip),%eax
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+    call reset
+
+    # display
+    call display
 
     # main関数の戻り値 0 を設定
     movl    $0, %eax
@@ -165,7 +346,3 @@ main:
 
     # main関数の終了
     ret
-
-.section .rodata
-.LC0:
-    .string "%d\n"
