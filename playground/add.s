@@ -1,24 +1,88 @@
+.bss
+.align 4
+memory:
+    .zero 4
+res:
+    .zero 4 
+cur:
+    .zero 4
+hasError:
+    .zero 1
+states:
+    .zero 1
 
+.data
+op:
+    .byte '+'
+last_op:
+    .byte '+'
 
 .text
-add5:
-    movl %edi, %eax
-    addl $5, %eax
+is_memory:
+    cmpb $'C', %dil
+    je .L_is_memory
+    cmpb $'R', %dil
+    je .L_is_memory
+    cmpb $'P', %dil
+    je .L_is_memory
+    cmpb $'M', %dil
+    je .L_is_memory
+
+    movb $0, %al
     ret
-col:
-    movl %edi, %eax
-    cmpl $1, %eax
-    jz tmp1
-        # 偶数の場合
-        movl %edi, %eax
-        sarl $1, %eax
-        ret
-    tmp1:
-        # 奇数の場合
-        movl %edi, %eax
-        imull $3, %eax
-        addl $1, %eax
-        ret
+
+    .L_is_memory:
+    movb $1, %al
+    ret
+
+/*
+is_memory:
+    andb $49, %dil
+    cmpb $17, %dil
+    setl %al
+    ret
+*/
+
+is_number:
+    cmpb $'S', %dil
+    je .L_is_number1
+    cmpb $'0', %dil
+    jl .L_is_number0
+    cmpb $'9', %dil
+    jg .L_is_number0
+    jmp .L_is_number1
+
+    .L_is_number0:
+    movb $0, %al
+    ret
+    .L_is_number1:
+    movb $1, %al
+    ret
+
+is_operand:
+    cmpb $'+', %dil
+    je .L_is_operand
+    cmpb $'-', %dil
+    je .L_is_operand
+    cmpb $'*', %dil
+    je .L_is_operand
+    cmpb $'/', %dil
+    je .L_is_operand
+    movb $0, %al
+    ret
+
+    .L_is_operand:
+    movb $1, %al
+    ret
+
+is_equal:
+    cmpb $'=', %dil
+    setz %al
+    ret
+
+
+build_in_add:
+    ret
 
 .global main
 .text
