@@ -111,13 +111,13 @@ void op_memory(char cmd){
         memory = 0;
         break;
     case 'P':
-        memory += eval(last_op,res,cur);
+        memory = add(memory,eval(last_op,res,cur));
         last_op = op;
         reset();
         res=0;
         break;
     case 'M':
-        memory -= eval(last_op,res,cur);
+        memory = sub(memory,eval(last_op,res,cur));
         last_op = op;
         reset();
         res=0;
