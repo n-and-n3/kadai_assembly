@@ -14,6 +14,12 @@ void printi(int tmp){
 
 // グローバル変数
 bool hasError = false;
+char last_op = '+';
+char op = '+';
+int memory = 0; // メモリーの値
+int res = 0; // レジスタの値
+int cur = 0; // 今入力されている値
+int states = 0; // 0:数字入力状態, 1:あた
 
 // 関数定義
 bool is_memory(char x){
@@ -31,6 +37,12 @@ bool is_operand(char x){
 bool is_equal(char x){
     return x == '=';
 }
+
+void reset(){
+    cur = 0;
+    op = '+';
+}
+
 
 int add(int x, int y){
     int ret;
@@ -72,8 +84,8 @@ int div(int x, int y){
         return ret;
     }
 }
-int eval(char op, int x, int y){
-    switch (op)
+int eval(char cmd, int x, int y){
+    switch (cmd)
     {
     case '+':
         return add(x,y);
@@ -84,19 +96,57 @@ int eval(char op, int x, int y){
     case '/':
         return div(x,y);
     default:
+        hasError = true;
         return 0;
     }
 }
-int concat(int x, char c){
-    int d = c - '0';
-    if (x >= 0){
-        return add(mul(x,10),d);
-    } else {
-        return sub(mul(x,10),d);
+
+void op_memory(char cmd){
+    switch (cmd)
+    {
+    case 'R':
+        res = memory;
+        break;
+    case 'C':
+        memory = 0;
+        break;
+    case 'P':
+        memory += eval(last_op,res,cur);
+        last_op = op;
+        reset();
+        res=0;
+        break;
+    case 'M':
+        memory -= eval(last_op,res,cur);
+        last_op = op;
+        reset();
+        res=0;
+        break;
     }
+
 }
 
 
+int concat(int x, char c){
+    if (c == 'S'){
+        return mul(x,-1);
+    } else {
+        int d = c - '0';
+        if (x >= 0){
+            return add(mul(x,10),d);
+        } else {
+            return sub(mul(x,10),d);
+        }
+    }
+}
+
+void display(){
+    if (hasError){
+        printf("E\n");
+    } else {
+        printf("%d\n", res);
+    }
+}
 
 // ほんへ
 int main (int argc, char *argv[])
@@ -107,61 +157,42 @@ int main (int argc, char *argv[])
     }
     char *p = argv[1];
 
-    char last_op = '+';
-
-    int memory = 0; // メモリーの値
-    int res = 0; // レジスタの値
-    int current = 0; // 今入力されている値
 
     while (true) {
-        if (*p == NULL){break;}
+        if (*p == '\0'){break;}
         char cmd = *p++;
-
-        switch (cmd)
-        {
-        case 'C':  // Memory Clear
-            memory = 0;
-            break;
-        case 'R':  // Recall Memory
-            res = memory;
-            break;
-        case 'P':  // Memory Plus
-            memory += eval(last_op,res,current);
-            res = 0;
-            last_op = '+';
-            current = 0;
-            break;
-        case 'M':  // Memory Minus
-            memory -= eval(last_op,res,current);
-            res = 0;
-            last_op = '+';
-
-            current = 0;
-            break;
-        case 'S':  // Sign Inv
-            current *= -1;
-            break;
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-            res = eval(last_op,res,current);
-            current = 0;
-            last_op = cmd;
-            break;
-        case '=': // eval
-            res = eval(last_op,res,current);
-            break;
-        default: // digit
-            current = concat(current, cmd);
-            break;
+        if (states == 0){
+            if(is_operand(cmd)){
+                op = cmd;
+                states = 1;
+            } else if (is_number(cmd)){
+                cur = concat(cur,cmd);
+            } else if (is_memory(cmd)){
+                op_memory(cmd);
+            } else if (is_equal(cmd)){
+                res = eval(last_op,res,cur);
+                last_op = op;
+                reset();
+            }
+        } else {
+            if(is_operand(cmd)){
+                op = cmd;
+            } else if (is_number(cmd)){
+                res = eval(last_op,res,cur);
+                last_op = op;
+                reset();
+                cur = concat(cur,cmd);
+                states = 0;
+            } else if (is_memory(cmd)){
+                op_memory(cmd);
+            } else if (is_equal(cmd)){
+                res = eval(last_op,res,cur);
+                last_op = op;
+                reset();
+            }
         }
     }
 
     // 最後に内部状態（？、レジスタの状態？）を出力
-    if (hasError){
-        printf("%s\n", "E");
-    } else {
-        printf("%d\n", res);
-    }
+    display();
 }
