@@ -90,7 +90,7 @@ is_equal:
 ##  () -> 
 reset:
     movl $0,cur(%rip)
-    movl $'+',op(%rip)
+    movb $'+',op(%rip)
     ret
 
 ## (%edi : int, %esi : int) -> %eax
@@ -269,7 +269,7 @@ main:
     movq    %rsp, %rbp
 
     # 12= を計算する
-    call display
+
 
     # 1
     movl cur(%rip),%edi
@@ -277,17 +277,56 @@ main:
     call concat
     movl %eax,cur(%rip)
 
-    call display
-
     # 2
     movl cur(%rip),%edi
     movb $'2',%sil
     call concat
     movl %eax,cur(%rip)
 
-    
-    # display
-    call display
+    # S
+    movl cur(%rip),%edi
+    movb $'S',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # 3
+    movl cur(%rip),%edi
+    movb $'3',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # 4
+    movl cur(%rip),%edi
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+    # +
+    movb $'+',op(%rip)
+
+
+    # 5
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+    call reset
+
+    movl cur(%rip),%edi
+    movb $'5',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+
+    # 6
+    movl cur(%rip),%edi
+    movb $'6',%sil
+    call concat
+    movl %eax,cur(%rip)
+
 
     # =
     movl res(%rip),%edi
