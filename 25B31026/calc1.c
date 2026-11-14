@@ -241,15 +241,15 @@ static void emit_eval(void)
 static void emit_op_memory(void)
 {
     fputs(
-        "## (%edi : char) -> \n"
+        "## (%dil : char) -> \n"
         "op_memory:\n"
-        "    cmpb $'R',%dl\n"
+        "    cmpb $'R',%dil\n"
         "    je .L_op_memory1\n"
-        "    cmpb $'C',%dl\n"
+        "    cmpb $'C',%dil\n"
         "    je .L_op_memory2\n"
-        "    cmpb $'P',%dl\n"
+        "    cmpb $'P',%dil\n"
         "    je .L_op_memory3\n"
-        "    cmpb $'M',%dl\n"
+        "    cmpb $'M',%dil\n"
         "    je .L_op_memory4\n"
         "\n"
         "    call put_error\n"
@@ -342,13 +342,7 @@ static void emit_display(void)
         "    call    printf\n"
         "    ret\n"
         "\n"
-        "\n",
-        stdout);
-}
-
-static void emit_rodata(void)
-{
-    fputs(
+        "\n"
         ".section .rodata\n"
         ".LC0:\n"
         "    .string \"E\\n\"\n"
@@ -374,7 +368,7 @@ static void emit_header(void)
     emit_op_memory();
     emit_concat();
     emit_display();
-    emit_rodata();
+    printf("\n");
 }
 
 static void emit_main_begin(void)
@@ -443,6 +437,13 @@ static void emit_set_op(char cmd){
     printf("    movb $'%c',op(%%rip)\n\n",cmd);
 }
 
+// op_memory(cmd);
+static void emit_call_op_memory(char cmd)
+{
+    printf("    movb $'%c',%%dil\n", cmd);
+    fputs("    call op_memory\n\n", stdout);
+}
+
 int states = 0; // 0:数字入力状態, 1:あた
 // 関数定義
 bool is_memory(char x){
@@ -488,7 +489,7 @@ int main (int argc, char *argv[])
             } else if (is_number(cmd)){
                 emit_concat_call(cmd);
             } else if (is_memory(cmd)){
-                // op_memory(cmd);
+                emit_call_op_memory(cmd);
             } else if (is_equal(cmd)){
                 emit_eval_call();
                 emit_copy_op_to_last_op();
@@ -504,7 +505,7 @@ int main (int argc, char *argv[])
                 emit_concat_call(cmd);
                 states = 0;
             } else if (is_memory(cmd)){
-                // op_memory(cmd);
+                emit_call_op_memory(cmd);
             } else if (is_equal(cmd)){
                 emit_eval_call();
                 emit_copy_op_to_last_op();

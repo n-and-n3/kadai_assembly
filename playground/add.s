@@ -163,15 +163,15 @@ eval:
         call my_div
     ret
 
-## (%edi : char) -> 
+## (%dil : char) -> 
 op_memory:
-    cmpb $'R',%dl
+    cmpb $'R',%dil
     je .L_op_memory1
-    cmpb $'C',%dl
+    cmpb $'C',%dil
     je .L_op_memory2
-    cmpb $'P',%dl
+    cmpb $'P',%dil
     je .L_op_memory3
-    cmpb $'M',%dl
+    cmpb $'M',%dil
     je .L_op_memory4
 
     call put_error
@@ -259,60 +259,52 @@ display:
 .LC1:
     .string "%d\n"
 
-
-
 .global main
 .text
 main:
-    # main関数のスタックフレームの構築
-    pushq   %rbp
-    movq    %rsp, %rbp
-
-    # 12= を計算する
-
-
-    # 1
+   pushq   %rbp
+   movq    %rsp, %rbp
+# 1
     movl cur(%rip),%edi
     movb $'1',%sil
     call concat
     movl %eax,cur(%rip)
 
-    # 2
+# 2
     movl cur(%rip),%edi
     movb $'2',%sil
     call concat
     movl %eax,cur(%rip)
 
-    # S
-    movl cur(%rip),%edi
-    movb $'S',%sil
-    call concat
-    movl %eax,cur(%rip)
+# P
+    movb $'P',%dil
+    call op_memory
 
-    # 3
+# 3
     movl cur(%rip),%edi
     movb $'3',%sil
     call concat
     movl %eax,cur(%rip)
 
-    # 4
+# 4
     movl cur(%rip),%edi
     movb $'4',%sil
     call concat
     movl %eax,cur(%rip)
 
-    # +
-    movb $'+',op(%rip)
+# *
+    movb $'*',op(%rip)
 
-
-    # 5
+# 5
     movl res(%rip),%edi
     movl cur(%rip),%esi
     movb last_op(%rip),%dl
     call eval
     movl %eax,res(%rip)
+
     movb op(%rip),%dl
     movb %dl,last_op(%rip)
+
     call reset
 
     movl cur(%rip),%edi
@@ -320,33 +312,22 @@ main:
     call concat
     movl %eax,cur(%rip)
 
-
-    # 6
+# 6
     movl cur(%rip),%edi
     movb $'6',%sil
     call concat
     movl %eax,cur(%rip)
 
+# P
+    movb $'P',%dil
+    call op_memory
 
-    # =
-    movl res(%rip),%edi
-    movl cur(%rip),%esi
-    movb last_op(%rip),%dl
-    call eval
-    movl %eax,res(%rip)
-    movb op(%rip),%dl
-    movb %dl,last_op(%rip)
-    call reset
+# R
+    movb $'R',%dil
+    call op_memory
 
-    # display
     call display
-
-    # main関数の戻り値 0 を設定
     movl    $0, %eax
-
-    # main関数のスタックフレームの破棄
     movq    %rbp, %rsp
     popq    %rbp
-
-    # main関数の終了
     ret
