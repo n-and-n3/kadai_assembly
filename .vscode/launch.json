@@ -21,6 +21,20 @@
         }
       ],
       "preLaunchTask": "C/C++: gcc アクティブなファイルのビルド"
+    },
+    {
+      "name": "ASM: 開いているファイルをGDBでデバッグ (WSL)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirname}/${fileBasenameNoExtension}",
+      "args": [],
+      "stopAtEntry": true,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "C/C++: gcc アクティブなファイルのビルド"
     }
   ],
   "inputs": [

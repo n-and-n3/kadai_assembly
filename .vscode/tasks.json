@@ -1,7 +1,7 @@
 {
     "tasks": [
         {
-            "type": "cppbuild",
+            "type": "process",
             "label": "C/C++: gcc アクティブなファイルのビルド",
             "command": "/usr/bin/gcc",
             "args": [

@@ -244,7 +244,7 @@ concat:
 display:
     leaq .LC1(%rip), %rdi
     cmpb $0, hasError(%rip)
-    jg .L_display
+    je .L_display
         leaq .LC0(%rip), %rdi
     .L_display:
     movl    res(%rip), %esi
@@ -268,64 +268,29 @@ main:
     pushq   %rbp
     movq    %rsp, %rbp
 
-    # 12S34+56= を計算する
+    # 12= を計算する
+    call display
 
     # 1
-    movl cur(%rip),%eax
+    movl cur(%rip),%edi
     movb $'1',%sil
     call concat
     movl %eax,cur(%rip)
 
+    call display
+
     # 2
-    movl cur(%rip),%eax
+    movl cur(%rip),%edi
     movb $'2',%sil
     call concat
     movl %eax,cur(%rip)
 
-    # S
-    movl cur(%rip),%eax
-    movb $'S',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-    # 3
-    movl cur(%rip),%eax
-    movb $'3',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-    # 4
-    movl cur(%rip),%eax
-    movb $'4',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-    # +
-    movb $'+',op(%rip)
-
-    # 5
-    movl res(%rip),%eax
-    movl cur(%rip),%esi
-    movb last_op(%rip),%dl
-    call eval
-    movl %eax,res(%rip)
-    movb op(%rip),%dl
-    movb %dl,last_op(%rip)
-    call reset
-
-    movl cur(%rip),%eax
-    movb $'5',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-    # 6
-    movl cur(%rip),%eax
-    movb $'6',%sil
-    call concat
-    movl %eax,cur(%rip)
+    
+    # display
+    call display
 
     # =
-    movl res(%rip),%eax
+    movl res(%rip),%edi
     movl cur(%rip),%esi
     movb last_op(%rip),%dl
     call eval
