@@ -194,7 +194,7 @@ static void emit_my_div(void)
         "    testl %esi,%esi\n"
         "    jz .L_my_div\n"
         "    movl %edi,%eax\n"
-        "    cqto\n"
+        "    cltd\n"
         "    idiv %esi\n"
         "    ret\n"
         "    .L_my_div:\n"

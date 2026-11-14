@@ -128,7 +128,7 @@ my_div:
     testl %esi,%esi
     jz .L_my_div
     movl %edi,%eax
-    cqto
+    cltd
     idiv %esi
     ret
     .L_my_div:
