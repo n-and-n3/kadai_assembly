@@ -1,3 +1,4 @@
+
 .bss
 .align 4
 memory:
@@ -38,14 +39,6 @@ is_memory:
     .L_is_memory:
     movb $1, %al
     ret
-
-/*
-is_memory:
-    andb $49, %dil
-    cmpb $17, %dil
-    setl %al
-    ret
-*/
 
 ##  (%dil : char) -> %al : bool
 is_number:
@@ -187,7 +180,7 @@ op_memory:
     .L_op_memory3:
         movl res(%rip),%edi
         movl cur(%rip),%esi
-        movb $'+',%dl
+        movb last_op(%rip),%dl
         call eval
         movl memory(%rip),%edi
         movl %eax,%esi
@@ -199,11 +192,11 @@ op_memory:
     .L_op_memory4:
         movl res(%rip),%edi
         movl cur(%rip),%esi
-        movb $'-',%dl
+        movb last_op(%rip),%dl
         call eval
         movl memory(%rip),%edi
         movl %eax,%esi
-        call my_add
+        call my_sub
         movl %eax,memory(%rip)
         call reset
         movl $0, res(%rip)
@@ -270,32 +263,16 @@ main:
     call concat
     movl %eax,cur(%rip)
 
-# 2
+# 0
     movl cur(%rip),%edi
-    movb $'2',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# P
-    movb $'P',%dil
-    call op_memory
-
-# 3
-    movl cur(%rip),%edi
-    movb $'3',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# 4
-    movl cur(%rip),%edi
-    movb $'4',%sil
+    movb $'0',%sil
     call concat
     movl %eax,cur(%rip)
 
 # *
     movb $'*',op(%rip)
 
-# 5
+# 2
     movl res(%rip),%edi
     movl cur(%rip),%esi
     movb last_op(%rip),%dl
@@ -308,18 +285,48 @@ main:
     call reset
 
     movl cur(%rip),%edi
-    movb $'5',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# 6
-    movl cur(%rip),%edi
-    movb $'6',%sil
+    movb $'2',%sil
     call concat
     movl %eax,cur(%rip)
 
 # P
     movb $'P',%dil
+    call op_memory
+
+# 4
+    movl cur(%rip),%edi
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# 0
+    movl cur(%rip),%edi
+    movb $'0',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# /
+    movb $'/',op(%rip)
+
+# 4
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+
+    call reset
+
+    movl cur(%rip),%edi
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# M
+    movb $'M',%dil
     call op_memory
 
 # R

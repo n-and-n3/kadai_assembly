@@ -56,14 +56,6 @@ static void emit_is_memory(void)
         "    .L_is_memory:\n"
         "    movb $1, %al\n"
         "    ret\n"
-        "\n"
-        "/*\n"
-        "is_memory:\n"
-        "    andb $49, %dil\n"
-        "    cmpb $17, %dil\n"
-        "    setl %al\n"
-        "    ret\n"
-        "*/\n"
         "\n",
         stdout);
 }
@@ -265,8 +257,10 @@ static void emit_op_memory(void)
         "    .L_op_memory3:\n"
         "        movl res(%rip),%edi\n"
         "        movl cur(%rip),%esi\n"
-        "        movb $'+',%dl\n"
+        "        movb last_op(%rip),%dl\n"
         "        call eval\n"
+        "        movb op(%rip),%dl\n"
+        "        movb %dl,last_op(%rip)\n"
         "        movl memory(%rip),%edi\n"
         "        movl %eax,%esi\n"
         "        call my_add\n"
@@ -277,11 +271,13 @@ static void emit_op_memory(void)
         "    .L_op_memory4:\n"
         "        movl res(%rip),%edi\n"
         "        movl cur(%rip),%esi\n"
-        "        movb $'-',%dl\n"
+        "        movb last_op(%rip),%dl\n"
         "        call eval\n"
+        "        movb op(%rip),%dl\n"
+        "        movb %dl,last_op(%rip)\n"
         "        movl memory(%rip),%edi\n"
         "        movl %eax,%esi\n"
-        "        call my_add\n"
+        "        call my_sub\n"
         "        movl %eax,memory(%rip)\n"
         "        call reset\n"
         "        movl $0, res(%rip)\n"
@@ -444,7 +440,7 @@ static void emit_call_op_memory(char cmd)
     fputs("    call op_memory\n\n", stdout);
 }
 
-int states = 0; // 0:数字入力状態, 1:あた
+int states = 0; // 0:数字入力状態, 1:値の計算状態
 // 関数定義
 bool is_memory(char x){
     return x == 'C' || x == 'R' || x == 'P' || x == 'M';
