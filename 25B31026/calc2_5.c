@@ -69,6 +69,10 @@ int sub(int x, int y){
 int mul(int x, int y){
     int copy_x = x;
     int copy_y = y;
+    int s = 0;
+    s ^= x;
+    s ^= y;
+
     if (x < 0){
         x = -x;
     }
@@ -85,10 +89,7 @@ int mul(int x, int y){
         tmp <<= 1;
         y >>= 1;
     }
-    if (copy_x < 0){
-        ret = -ret;
-    }
-    if (copy_y < 0){
+    if (s < 0){
         ret = -ret;
     }
 
@@ -100,8 +101,9 @@ int div(int x, int y){
         hasError = true;
         return 0;
     } else {
-        int copy_x = x;
-        int copy_y = y;
+        int s = 0;
+        s ^= x;
+        s ^= y;
         if (x < 0){
             x = -x;
         }
@@ -122,15 +124,13 @@ int div(int x, int y){
             y >>= 1;
             tmp >>= 1;
         }
-        if (copy_x < 0){
+        if (s < 0){
             ret = -ret;
-        } 
-        if (copy_y < 0){
-            ret = -ret;
-        } 
+        }
         return ret;
     }
 }
+
 int eval(char cmd, int x, int y){
     switch (cmd)
     {

@@ -107,14 +107,44 @@ my_sub:
 
 ## (%edi : int, %esi : int) -> %eax
 my_mul:
-    movl $0,%eax
-    movl $edi,%edx
+    movl %edi,%edx
+    xorl %esi,%edx
 
-    testl %esi,%esi
-    .L_loop_begin:
-        testl %edx,%edx
-    .L_loop_end:
+    cmp $0,%edi
+    jge .L_my_mul_x_positive
+        negl %edi
+    .L_my_mul_x_positive:
+
+    cmp $0,%esi
+    jge .L_my_mul_y_positive
+        negl %esi
+    .L_my_mul_y_positive:
+
+    movl $0,%eax
+
+    .L_my_mul_loop: # while の開始
+    testl %esi, %esi
+    jz .L_my_mul_end_loop # break
+
+        testl $1, %esi
+        jz .L_my_mul_skip_add
+            addl %edi, %eax
+        .L_my_mul_skip_add:
+
+        shll $1, %edi
+        shrl $1, %esi
+
+    jmp .L_my_mul_loop # ここで強制的に最初に戻る
+    .L_my_mul_end_loop: # ループの終わり
+
+    cmp $0,%edx
+    jge .L_skip_neg
+        negl %eax
+    .L_skip_neg:
+
     ret
+
+
 
 
 ## (%edi : int, %esi : int) -> %eax
@@ -125,18 +155,65 @@ my_div:
     jne .L_my_div1
     cmpl $-1,%esi
     jne .L_my_div1
-    jmp .L_my_div2
 
-    .L_my_div1:
-    movl %edi,%eax
-    cltd
-    idiv %esi
-    ret
-
+    # エラー処理
     .L_my_div2:
     call put_error
     movl $0,%eax
     ret
+
+    # 除算処理の本編 # %edi = x, %esi = y
+    .L_my_div1:
+    movl %edi,%edx
+    xorl %esi,%edx
+
+    cmp $0,%edi
+    jge .L_my_div_x_positive
+        negl %edi
+    .L_my_div_x_positive:
+
+    cmp $0,%esi
+    jge .L_my_div_y_positive
+        negl %esi
+    .L_my_div_y_positive:
+
+    movl %edi,%ecx
+    shrl $1, %ecx  # %ecx  = %edi / 2 = x >> 1
+    movl $0,%eax
+    movl $1,%r8d
+
+    .L_my_div_loop1: # while の開始
+    cmp %ecx, %esi
+    jg .L_my_div_end_loop # break
+
+        shll $1, %r8d
+        shll $1, %esi
+
+    jmp .L_my_div_loop1 # ここで強制的に最初に戻る
+    .L_my_div_end_loop: # ループの終わり
+
+    .L_my_div_loop2: # while の開始
+    cmp $0,%r8d
+    jz .L_my_div_end_loop2 # break
+    
+        cmp %esi, %edi
+        jl .L_my_div_skip_sub
+            subl %esi, %edi
+            addl %r8d, %eax
+        .L_my_div_skip_sub:
+
+        shrl $1, %esi
+        shrl $1, %r8d
+    
+    jmp .L_my_div_loop2 # ここで強制的に最初に戻る
+    .L_my_div_end_loop2: # ループの終わり
+
+    cmp $0,%edx
+    jge .L_my_div_skip_neg
+        negl %eax
+    .L_my_div_skip_neg:
+    ret
+
 
 ## (%edi : int, %esi : int, %dl : char) -> %eax : int
 eval:

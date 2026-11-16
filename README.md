@@ -27,6 +27,8 @@
 
 ## フォルダ構成
 
+電卓課題の最終確認で見直す保留事項は [notes/final-check.md](notes/final-check.md) に記録しています。
+
 ```text
 kadai/
 ├── README.md
