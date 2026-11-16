@@ -1,4 +1,3 @@
-
 .bss
 .align 4
 memory:
@@ -39,14 +38,6 @@ is_memory:
     .L_is_memory:
     movb $1, %al
     ret
-
-/*
-is_memory:
-    andb $49, %dil
-    cmpb $17, %dil
-    setl %al
-    ret
-*/
 
 ##  (%dil : char) -> %al : bool
 is_number:
@@ -116,23 +107,33 @@ my_sub:
 
 ## (%edi : int, %esi : int) -> %eax
 my_mul:
-    movl %edi,%eax
-    imul %esi,%eax
-    jo .L_my_mul
+    movl $0,%eax
+    movl $edi,%edx
+
+    testl %esi,%esi
+    .L_loop_begin:
+        testl %edx,%edx
+    .L_loop_end:
     ret
-    .L_my_mul:
-    call put_error
-    ret
+
 
 ## (%edi : int, %esi : int) -> %eax
 my_div:
     testl %esi,%esi
-    jz .L_my_div
+    jz .L_my_div2
+    cmpl $-2147483648,%edi
+    jne .L_my_div1
+    cmpl $-1,%esi
+    jne .L_my_div1
+    jmp .L_my_div2
+
+    .L_my_div1:
     movl %edi,%eax
-    cqto
+    cltd
     idiv %esi
     ret
-    .L_my_div:
+
+    .L_my_div2:
     call put_error
     movl $0,%eax
     ret
@@ -164,15 +165,15 @@ eval:
         call my_div
     ret
 
-## (%edi : char) -> 
+## (%dil : char) -> 
 op_memory:
-    cmpb $'R',%dl
+    cmpb $'R',%dil
     je .L_op_memory1
-    cmpb $'C',%dl
+    cmpb $'C',%dil
     je .L_op_memory2
-    cmpb $'P',%dl
+    cmpb $'P',%dil
     je .L_op_memory3
-    cmpb $'M',%dl
+    cmpb $'M',%dil
     je .L_op_memory4
 
     call put_error
@@ -188,8 +189,10 @@ op_memory:
     .L_op_memory3:
         movl res(%rip),%edi
         movl cur(%rip),%esi
-        movb $'+',%dl
+        movb last_op(%rip),%dl
         call eval
+        movb op(%rip),%dl
+        movb %dl,last_op(%rip)
         movl memory(%rip),%edi
         movl %eax,%esi
         call my_add
@@ -200,11 +203,13 @@ op_memory:
     .L_op_memory4:
         movl res(%rip),%edi
         movl cur(%rip),%esi
-        movb $'-',%dl
+        movb last_op(%rip),%dl
         call eval
+        movb op(%rip),%dl
+        movb %dl,last_op(%rip)
         movl memory(%rip),%edi
         movl %eax,%esi
-        call my_add
+        call my_sub
         movl %eax,memory(%rip)
         call reset
         movl $0, res(%rip)
@@ -259,6 +264,7 @@ display:
     .string "E\n"
 .LC1:
     .string "%d\n"
+
 .global main
 .text
 main:
@@ -266,54 +272,87 @@ main:
    movq    %rsp, %rbp
 # 1
     movl cur(%rip),%edi
-    movb $49,%sil
+    movb $'1',%sil
     call concat
     movl %eax,cur(%rip)
+
+# *
+    movb $'*',op(%rip)
 
 # 2
-    movl cur(%rip),%edi
-    movb $50,%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# S
-    movl cur(%rip),%edi
-    movb $83,%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# 3
-    movl cur(%rip),%edi
-    movb $51,%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# 4
-    movl cur(%rip),%edi
-    movb $52,%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# +
-    movb $'+',op(%rip)
-
-# 5
     movl res(%rip),%edi
     movl cur(%rip),%esi
     movb last_op(%rip),%dl
     call eval
     movl %eax,res(%rip)
+
     movb op(%rip),%dl
     movb %dl,last_op(%rip)
+
     call reset
+
     movl cur(%rip),%edi
-    movb $53,%sil
+    movb $'2',%sil
     call concat
     movl %eax,cur(%rip)
 
-# 6
+# *
+    movb $'*',op(%rip)
+
+# 3
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+
+    call reset
+
     movl cur(%rip),%edi
-    movb $54,%sil
+    movb $'3',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# *
+    movb $'*',op(%rip)
+
+# 4
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+
+    call reset
+
+    movl cur(%rip),%edi
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# /
+    movb $'/',op(%rip)
+
+# 6
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+
+    call reset
+
+    movl cur(%rip),%edi
+    movb $'6',%sil
     call concat
     movl %eax,cur(%rip)
 
@@ -323,9 +362,12 @@ main:
     movb last_op(%rip),%dl
     call eval
     movl %eax,res(%rip)
+
     movb op(%rip),%dl
     movb %dl,last_op(%rip)
+
     call reset
+
     call display
     movl    $0, %eax
     movq    %rbp, %rsp

@@ -46,8 +46,8 @@ void reset(){
 
 int add(int x, int y){
     int ret;
-    bool carry = __builtin_add_overflow(x,y,&ret);
-    if (carry){
+    bool overflow = __builtin_add_overflow(x,y,&ret);
+    if (overflow){
         hasError = true;
         return 0;
     } else {
@@ -56,8 +56,8 @@ int add(int x, int y){
 }
 int sub(int x, int y){
     int ret;
-    bool carry = __builtin_sub_overflow(x,y,&ret);
-    if (carry){
+    bool overflow = __builtin_sub_overflow(x,y,&ret);
+    if (overflow){
         hasError = true;
         return 0;
     } else {
@@ -66,8 +66,8 @@ int sub(int x, int y){
 }
 int mul(int x, int y){
     int ret;
-    bool carry = __builtin_mul_overflow(x,y,&ret);
-    if (carry){
+    bool overflow = __builtin_mul_overflow(x,y,&ret);
+    if (overflow){
         hasError = true;
         return 0;
     } else {
@@ -76,8 +76,8 @@ int mul(int x, int y){
 }
 int div(int x, int y){
     int ret = (y != 0 ? x/y : 0);
-    bool carry = (y == 0);
-    if (carry){
+    bool overflow = (y == 0);
+    if (overflow){
         hasError = true;
         return 0;
     } else {

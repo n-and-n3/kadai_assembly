@@ -1,4 +1,3 @@
-
 .bss
 .align 4
 memory:
@@ -108,6 +107,9 @@ my_sub:
 
 ## (%edi : int, %esi : int) -> %eax
 my_mul:
+    # 値の保存
+    movl %edi,%edx
+    movl %
     movl %edi,%eax
     imul %esi,%eax
     jo .L_my_mul
@@ -119,12 +121,20 @@ my_mul:
 ## (%edi : int, %esi : int) -> %eax
 my_div:
     testl %esi,%esi
-    jz .L_my_div
+    jz .L_my_div2
+    cmpl $-2147483648,%edi
+    jne .L_my_div1
+    cmpl $-1,%esi
+    jne .L_my_div1
+    jmp .L_my_div2
+
+    .L_my_div1:
     movl %edi,%eax
     cltd
     idiv %esi
     ret
-    .L_my_div:
+
+    .L_my_div2:
     call put_error
     movl $0,%eax
     ret
@@ -182,6 +192,8 @@ op_memory:
         movl cur(%rip),%esi
         movb last_op(%rip),%dl
         call eval
+        movb op(%rip),%dl
+        movb %dl,last_op(%rip)
         movl memory(%rip),%edi
         movl %eax,%esi
         call my_add
@@ -194,6 +206,8 @@ op_memory:
         movl cur(%rip),%esi
         movb last_op(%rip),%dl
         call eval
+        movb op(%rip),%dl
+        movb %dl,last_op(%rip)
         movl memory(%rip),%edi
         movl %eax,%esi
         call my_sub
@@ -257,20 +271,14 @@ display:
 main:
    pushq   %rbp
    movq    %rsp, %rbp
-# 1
-    movl cur(%rip),%edi
-    movb $'1',%sil
-    call concat
-    movl %eax,cur(%rip)
-
 # 0
     movl cur(%rip),%edi
     movb $'0',%sil
     call concat
     movl %eax,cur(%rip)
 
-# *
-    movb $'*',op(%rip)
+# -
+    movb $'-',op(%rip)
 
 # 2
     movl res(%rip),%edi
@@ -289,9 +297,11 @@ main:
     call concat
     movl %eax,cur(%rip)
 
-# P
-    movb $'P',%dil
-    call op_memory
+# 1
+    movl cur(%rip),%edi
+    movb $'1',%sil
+    call concat
+    movl %eax,cur(%rip)
 
 # 4
     movl cur(%rip),%edi
@@ -299,16 +309,52 @@ main:
     call concat
     movl %eax,cur(%rip)
 
-# 0
+# 7
     movl cur(%rip),%edi
-    movb $'0',%sil
+    movb $'7',%sil
     call concat
     movl %eax,cur(%rip)
 
-# /
-    movb $'/',op(%rip)
+# 4
+    movl cur(%rip),%edi
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# 8
+    movl cur(%rip),%edi
+    movb $'8',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# 3
+    movl cur(%rip),%edi
+    movb $'3',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# 6
+    movl cur(%rip),%edi
+    movb $'6',%sil
+    call concat
+    movl %eax,cur(%rip)
 
 # 4
+    movl cur(%rip),%edi
+    movb $'4',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# 7
+    movl cur(%rip),%edi
+    movb $'7',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# -
+    movb $'-',op(%rip)
+
+# 1
     movl res(%rip),%edi
     movl cur(%rip),%esi
     movb last_op(%rip),%dl
@@ -321,17 +367,47 @@ main:
     call reset
 
     movl cur(%rip),%edi
-    movb $'4',%sil
+    movb $'1',%sil
     call concat
     movl %eax,cur(%rip)
 
-# M
-    movb $'M',%dil
-    call op_memory
+# /
+    movb $'/',op(%rip)
 
-# R
-    movb $'R',%dil
-    call op_memory
+# 1
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+
+    call reset
+
+    movl cur(%rip),%edi
+    movb $'1',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# S
+    movl cur(%rip),%edi
+    movb $'S',%sil
+    call concat
+    movl %eax,cur(%rip)
+
+# =
+    movl res(%rip),%edi
+    movl cur(%rip),%esi
+    movb last_op(%rip),%dl
+    call eval
+    movl %eax,res(%rip)
+
+    movb op(%rip),%dl
+    movb %dl,last_op(%rip)
+
+    call reset
 
     call display
     movl    $0, %eax
