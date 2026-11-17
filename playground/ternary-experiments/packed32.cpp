@@ -14,6 +14,7 @@
 
 using u64 = std::uint64_t;
 using i64 = std::int64_t;
+using u128 = unsigned __int128;
 #define NOINLINE __attribute__((noinline))
 constexpr u64 EVEN = 0x5555555555555555ULL;
 constexpr u64 ODD = 0xAAAAAAAAAAAAAAAAULL;
@@ -27,6 +28,7 @@ extern "C" u64 asm_trit_max(u64, u64);
 extern "C" u64 asm_trit_product(u64, u64);
 extern "C" u64 asm_trit_cycle_inverse(u64);
 extern "C" u64 asm_trit_plus_count_raw(u64);
+extern "C" u64 asm_trit_add_bct(u64, u64);
 #endif
 
 static NOINLINE u64 trit_neg(u64 x) {
@@ -188,6 +190,134 @@ static u64 trit_add_ripple(u64 x, u64 y) {
     return result;
 }
 
+static inline u64 to_biased_bct(u64 x) {
+    // one-hot: -=01, 0=00, +=10; BCT: -=00, 0=01, +=10.
+    return x ^ (~(x >> 1) & EVEN);
+}
+
+static inline u64 add_unsigned_bct(u64 a, u64 b) {
+    // Jones' BCT correction scheme, extended with a 65th carry bit so that
+    // the highest of 32 trits receives its correction too.
+    u128 c = static_cast<u128>(a) + EVEN;
+    u128 d = static_cast<u128>(b) + c;
+    u128 no_carry = ~(static_cast<u128>(b) ^ c ^ d)
+                  & ((static_cast<u128>(1) << 64) | (EVEN & ~1ULL));
+    return static_cast<u64>(d - (no_carry >> 2));
+}
+
+static inline u64 add_unsigned_bct_fast(u64 a, u64 b) {
+    u64 c = a + EVEN;
+    u64 d = b + c;
+    u64 no_carry_low = (~(b ^ c ^ d) & (EVEN & ~1ULL)) >> 2;
+    u64 no_carry_top = static_cast<u64>(d >= b) << 62;
+    return d - (no_carry_low | no_carry_top);
+}
+
+static NOINLINE u64 trit_add_bct(u64 x, u64 y) {
+    constexpr u64 NEG_BIAS = 0x5555555555555556ULL;
+    u64 a = to_biased_bct(x);
+    u64 b = to_biased_bct(y);
+    u64 sum = add_unsigned_bct(add_unsigned_bct(a, b), NEG_BIAS);
+    return to_biased_bct(sum);
+}
+
+static NOINLINE u64 trit_add_bct_fast(u64 x, u64 y) {
+    constexpr u64 NEG_BIAS = 0x5555555555555556ULL;
+    u64 a = to_biased_bct(x);
+    u64 b = to_biased_bct(y);
+    u64 sum = add_unsigned_bct_fast(add_unsigned_bct_fast(a, b), NEG_BIAS);
+    return to_biased_bct(sum);
+}
+
+static NOINLINE u64 bct_add_direct(u64 a, u64 b) {
+    constexpr u64 NEG_BIAS = 0x5555555555555556ULL;
+    return add_unsigned_bct_fast(add_unsigned_bct_fast(a, b), NEG_BIAS);
+}
+
+static NOINLINE u64 trit_sub_bct_fast(u64 x, u64 y) {
+    return trit_add_bct_fast(x, trit_neg(y));
+}
+
+static NOINLINE u64 trit_sub_bct_negated(u64 x, u64 y) {
+    constexpr u64 NEG_BIAS = 0x5555555555555556ULL;
+    u64 a = to_biased_bct(x);
+    u64 b = ODD - to_biased_bct(y);
+    return to_biased_bct(add_unsigned_bct_fast(add_unsigned_bct_fast(a, b), NEG_BIAS));
+}
+
+static NOINLINE u64 bct_sub_direct(u64 a, u64 b) {
+    return bct_add_direct(a, ODD - b);
+}
+
+static NOINLINE u64 trit_mul_pow3(u64 x, unsigned exponent, bool negative) {
+    assert(exponent < 32);
+    u64 shifted = x << (2 * exponent); // Product modulo 3^32.
+    return negative ? trit_neg(shifted) : shifted;
+}
+
+static NOINLINE u64 trit_mul_sparse2_mod(u64 x, u64 sparse) {
+    assert(__builtin_popcountll(sparse) == 2);
+    unsigned first = static_cast<unsigned>(__builtin_ctzll(sparse));
+    sparse &= sparse - 1;
+    unsigned second = static_cast<unsigned>(__builtin_ctzll(sparse));
+    u64 a = trit_mul_pow3(x, first / 2, (first & 1U) == 0);
+    u64 b = trit_mul_pow3(x, second / 2, (second & 1U) == 0);
+    return trit_add_bct_fast(a, b); // Product modulo 3^32.
+}
+
+static int trit_sign(u64 x) {
+    if (!x) return 0;
+    unsigned highest_bit = 63U - static_cast<unsigned>(__builtin_clzll(x));
+    return (highest_bit & 1U) ? 1 : -1;
+}
+
+static NOINLINE u64 trit_div_pow3(u64 x, unsigned exponent, bool negative) {
+    assert(exponent < 32);
+    if (exponent == 0) return negative ? trit_neg(x) : x;
+    unsigned shift = 2 * exponent;
+    u64 quotient = x >> shift;
+    u64 remainder = x & ((1ULL << shift) - 1);
+    if (remainder == 0) return negative ? trit_neg(quotient) : quotient;
+    // x = 3^k * quotient + remainder, with a balanced remainder.
+    // Correct the quotient only when truncation toward zero requires it.
+    int qs = trit_sign(quotient), rs = trit_sign(remainder);
+    if (qs && rs && qs != rs)
+        quotient = trit_add_bct_fast(quotient, qs > 0 ? 1ULL : 2ULL);
+    return negative ? trit_neg(quotient) : quotient;
+}
+
+static NOINLINE u64 bct_neg(u64 x) {
+    return ODD - x; // Per-lane 2 - digit; no inter-lane borrow.
+}
+
+static inline u64 bct_logic(u64 x) {
+    return x ^ ((x & ODD) >> 1);
+}
+
+static NOINLINE u64 bct_min(u64 x, u64 y) {
+    return bct_logic(bct_logic(x) & bct_logic(y));
+}
+
+static NOINLINE u64 bct_max(u64 x, u64 y) {
+    return bct_logic(bct_logic(x) | bct_logic(y));
+}
+
+static NOINLINE u64 bct_product(u64 x, u64 y) {
+    u64 xp = (x >> 1) & EVEN, xz = x & EVEN;
+    u64 yp = (y >> 1) & EVEN, yz = y & EVEN;
+    u64 xn = ~(xp | xz) & EVEN, yn = ~(yp | yz) & EVEN;
+    u64 positive = (xp & yp) | (xn & yn);
+    u64 negative = (xp & yn) | (xn & yp);
+    u64 zero = ~(positive | negative) & EVEN;
+    return (positive << 1) | zero;
+}
+
+static NOINLINE u64 bct_cycle(u64 x) {
+    u64 zero = x & EVEN;
+    u64 negative = ~(x | (x >> 1)) & EVEN;
+    return (zero << 1) | negative;
+}
+
 static const std::array<std::uint16_t, 3 * 65536> &add4_table() {
     static const auto table = [] {
         std::array<std::uint16_t, 3 * 65536> result{};
@@ -240,6 +370,23 @@ static const std::array<std::uint16_t, 6561> &encode8_table() {
                 unsigned d = value % 3;
                 value /= 3;
                 packed |= (d == 0 ? 1U : d == 2 ? 2U : 0U) << (2 * j);
+            }
+            result[k] = static_cast<std::uint16_t>(packed);
+        }
+        return result;
+    }();
+    return table;
+}
+
+static const std::array<std::uint16_t, 6561> &encode8_bct_table() {
+    static const auto table = [] {
+        std::array<std::uint16_t, 6561> result{};
+        for (unsigned k = 0; k < result.size(); ++k) {
+            unsigned value = k, packed = 0;
+            for (int j = 0; j < 8; ++j) {
+                unsigned digit = value % 3;
+                value /= 3;
+                packed |= digit << (2 * j);
             }
             result[k] = static_cast<std::uint16_t>(packed);
         }
@@ -301,6 +448,18 @@ static u64 encode_table(i64 value) {
     return result;
 }
 
+static u64 encode_bct_table(i64 value) {
+    assert(-LIMIT <= value && value <= LIMIT);
+    const auto &table = encode8_bct_table();
+    u64 biased = static_cast<u64>(value + LIMIT), result = 0;
+    for (int i = 0; i < 4; ++i) {
+        unsigned digit = static_cast<unsigned>(biased % 6561);
+        biased /= 6561;
+        result |= static_cast<u64>(table[digit]) << (16 * i);
+    }
+    return result;
+}
+
 static i64 decode_table(u64 x) {
     const auto &weights = decode8_weights();
     u64 positive = _pext_u64(x, ODD);
@@ -315,6 +474,29 @@ static i64 decode_table(u64 x) {
     return result;
 }
 
+static inline i64 decode_low16(u64 x) {
+    assert((x >> 32) == 0);
+    const auto &weights = decode8_weights();
+    unsigned positive = static_cast<unsigned>(_pext_u64(x, ODD));
+    unsigned negative = static_cast<unsigned>(_pext_u64(x, EVEN));
+    return 6561LL * (weights[positive >> 8] - weights[negative >> 8])
+         + weights[positive & 255] - weights[negative & 255];
+}
+
+static i64 decode_bct_table(u64 x) {
+    const auto &weights = decode8_weights();
+    u64 high = _pext_u64(x, ODD);
+    u64 low = _pext_u64(x, EVEN);
+    i64 result = 0;
+    for (int i = 3; i >= 0; --i) {
+        unsigned shift = 8 * i;
+        result = result * 6561
+               + 2 * weights[(high >> shift) & 255]
+               + weights[(low >> shift) & 255];
+    }
+    return result - LIMIT;
+}
+
 static u64 trit_add_reference(u64 x, u64 y) {
     i64 result = decode(x) + decode(y);
     // This benchmark uses only in-range sums. Overflow policy remains open.
@@ -324,6 +506,12 @@ static u64 trit_add_reference(u64 x, u64 y) {
 
 static u64 trit_add_table(u64 x, u64 y) {
     i64 result = decode_table(x) + decode_table(y);
+    assert(-LIMIT <= result && result <= LIMIT);
+    return encode_table(result);
+}
+
+static u64 trit_sub_table(u64 x, u64 y) {
+    i64 result = decode_table(x) - decode_table(y);
     assert(-LIMIT <= result && result <= LIMIT);
     return encode_table(result);
 }
@@ -346,6 +534,77 @@ static u64 trit_mul_table(u64 x, u64 y) {
     return encode_table(static_cast<i64>(result));
 }
 
+static NOINLINE u64 trit_mul_low16(u64 x, u64 y) {
+    i64 a = decode_low16(x), b = decode_low16(y);
+    return encode_table(a * b); // Both inputs <= (3^16-1)/2, so product fits.
+}
+
+static NOINLINE u64 trit_mul_low16_hybrid(u64 x, u64 y) {
+    if (((x | y) >> 32) == 0) return trit_mul_low16(x, y);
+    return trit_mul_table(x, y);
+}
+
+static NOINLINE u64 trit_mul_low8_kronecker(u64 x, u64 y) {
+    // Proof of concept: pack eight sign-bit coefficients four bits apart.
+    // Each product coefficient is <=8, so 4-bit lanes do not carry.
+    assert(((x | y) >> 16) == 0);
+    auto spread = [](u64 bits) { return _pdep_u64(bits, 0x11111111ULL); };
+    u64 xp = spread(_pext_u64(x, 0xAAAAULL));
+    u64 xn = spread(_pext_u64(x, 0x5555ULL));
+    u64 yp = spread(_pext_u64(y, 0xAAAAULL));
+    u64 yn = spread(_pext_u64(y, 0x5555ULL));
+    u64 pp = xp * yp, nn = xn * yn, pn = xp * yn, np = xn * yp;
+    int carry = 0;
+    u64 out = 0;
+    for (int i = 0; i < 16; ++i) {
+        unsigned shift = 4 * i;
+        int coefficient = static_cast<int>((pp >> shift) & 15)
+                        + static_cast<int>((nn >> shift) & 15)
+                        - static_cast<int>((pn >> shift) & 15)
+                        - static_cast<int>((np >> shift) & 15) + carry;
+        int digit = ((coefficient + 1) % 3 + 3) % 3 - 1;
+        carry = (coefficient - digit) / 3;
+        out |= static_cast<u64>(digit > 0 ? 2 : digit < 0 ? 1 : 0) << (2 * i);
+    }
+    assert(carry == 0);
+    return out;
+}
+
+static NOINLINE u64 trit_mul_hybrid(u64 x, u64 y) {
+    if (x == 0 || y == 0) return 0;
+    if (y == 2) return x;
+    if (y == 1) return trit_neg(x);
+    u64 sparse = y, other = x;
+    unsigned count = static_cast<unsigned>(__builtin_popcountll(sparse));
+    if (count > 2) {
+        sparse = x;
+        other = y;
+        count = static_cast<unsigned>(__builtin_popcountll(sparse));
+    }
+    if (count == 1) {
+        unsigned bit = static_cast<unsigned>(__builtin_ctzll(sparse));
+        unsigned exponent = bit / 2;
+        assert(exponent == 0 || (other >> (64 - 2 * exponent)) == 0);
+        return trit_mul_pow3(other, exponent, (bit & 1U) == 0);
+    }
+    if (count == 2) {
+        if (other == 0) return 0;
+        unsigned highest_x = (63U - static_cast<unsigned>(__builtin_clzll(other))) / 2;
+        unsigned highest_y = (63U - static_cast<unsigned>(__builtin_clzll(sparse))) / 2;
+        // Conservative bound: no overflow is possible when h(x)+h(y)<=30.
+        if (highest_x + highest_y <= 30)
+            return trit_mul_sparse2_mod(other, sparse);
+    }
+    if (((x | y) >> 32) == 0) return trit_mul_low16(x, y);
+    return trit_mul_table(x, y);
+}
+
+static u64 bct_mul_table(u64 x, u64 y) {
+    __int128 result = static_cast<__int128>(decode_bct_table(x)) * decode_bct_table(y);
+    assert(-LIMIT <= result && result <= LIMIT);
+    return encode_bct_table(static_cast<i64>(result));
+}
+
 static u64 trit_div_native(u64 x, u64 y) {
     i64 divisor = decode(y);
     assert(divisor != 0);
@@ -356,6 +615,46 @@ static u64 trit_div_table(u64 x, u64 y) {
     i64 divisor = decode_table(y);
     assert(divisor != 0);
     return encode_table(decode_table(x) / divisor);
+}
+
+static inline i64 div_i64_fp_checked(i64 x, i64 y) {
+    assert(y != 0);
+    // |x|,|y| <= LIMIT < 2^50: both inputs are exact in binary64.
+    u64 ax = static_cast<u64>(x < 0 ? -x : x);
+    u64 ay = static_cast<u64>(y < 0 ? -y : y);
+    u64 q = static_cast<u64>(static_cast<double>(ax) / static_cast<double>(ay));
+    u64 product = q * ay; // < 2*LIMIT, so it fits in uint64_t.
+    if (product > ax) --q;
+    else if (ax - product >= ay) ++q;
+    return ((x < 0) != (y < 0)) ? -static_cast<i64>(q) : static_cast<i64>(q);
+}
+
+static NOINLINE u64 trit_div_fp_checked(u64 x, u64 y) {
+    i64 divisor = decode_table(y);
+    assert(divisor != 0);
+    return encode_table(div_i64_fp_checked(decode_table(x), divisor));
+}
+
+static NOINLINE u64 trit_div_hybrid(u64 x, u64 y) {
+    assert(y != 0);
+    if (x == 0) return 0;
+    if (y == 2) return x;
+    if (y == 1) return trit_neg(x);
+    if (__builtin_popcountll(y) == 1) {
+        unsigned bit = static_cast<unsigned>(__builtin_ctzll(y));
+        unsigned shift = bit & ~1U;
+        if ((x & ((1ULL << shift) - 1)) == 0) {
+            u64 quotient = x >> shift;
+            return (bit & 1U) == 0 ? trit_neg(quotient) : quotient;
+        }
+    }
+    return trit_div_table(x, y);
+}
+
+static u64 bct_div_table(u64 x, u64 y) {
+    i64 divisor = decode_bct_table(y);
+    assert(divisor != 0);
+    return encode_bct_table(decode_bct_table(x) / divisor);
 }
 
 static u64 next_random(u64 &state) {
@@ -387,6 +686,15 @@ static void verify() {
         assert(decode_table(x) == decode(x));
         assert(decode_table_portable(x) == decode(x));
         assert(trit_neg(trit_neg(x)) == x);
+        u64 bx = to_biased_bct(x), by = to_biased_bct(y);
+        assert(to_biased_bct(bct_neg(bx)) == trit_neg(x));
+        assert(to_biased_bct(bct_min(bx, by)) == trit_min_xor(x, y));
+        assert(to_biased_bct(bct_max(bx, by)) == trit_max_xor(x, y));
+        assert(to_biased_bct(bct_product(bx, by)) == trit_product_swar(x, y));
+        assert(to_biased_bct(bct_cycle(bx)) == trit_cycle(x));
+        assert(decode_bct_table(bx) == decode(x));
+        assert(encode_bct_table(decode(x)) == bx);
+        assert((bx < by) == (decode(x) < decode(y)));
 #ifdef WITH_ASM
         assert(asm_trit_neg(x) == trit_neg(x));
         assert(asm_trit_min(x, y) == trit_min_xor(x, y));
@@ -406,31 +714,133 @@ static void verify() {
         assert(plus_count(x) + minus_count(x) + zero_count(x) == 32);
         assert(trit_shift_right(trit_shift_left(x, 1), 1) == (x & 0x3FFFFFFFFFFFFFFFULL));
         i64 sum = decode(x) + decode(y);
+        i64 wrapped = sum;
+        if (wrapped > LIMIT) wrapped -= 2 * LIMIT + 1;
+        if (wrapped < -LIMIT) wrapped += 2 * LIMIT + 1;
+        assert(trit_add_bct(x, y) == encode(wrapped));
+        assert(trit_add_bct_fast(x, y) == encode(wrapped));
+        assert(to_biased_bct(bct_add_direct(bx, by)) == encode(wrapped));
+        i64 difference = decode(x) - decode(y);
+        i64 wrapped_difference = difference;
+        if (wrapped_difference > LIMIT) wrapped_difference -= 2 * LIMIT + 1;
+        if (wrapped_difference < -LIMIT) wrapped_difference += 2 * LIMIT + 1;
+        assert(trit_sub_bct_fast(x, y) == encode(wrapped_difference));
+        assert(trit_sub_bct_negated(x, y) == encode(wrapped_difference));
+        assert(to_biased_bct(bct_sub_direct(bx, by)) == encode(wrapped_difference));
+#ifdef WITH_ASM
+        assert(asm_trit_add_bct(x, y) == encode(wrapped));
+#endif
         if (-LIMIT <= sum && sum <= LIMIT) {
             assert(trit_add_ripple(x, y) == encode(sum));
             assert(trit_add_table(x, y) == encode(sum));
             assert(trit_add_table_portable(x, y) == encode(sum));
             assert(trit_add_chunk4(x, y) == encode(sum));
         }
+        if (-LIMIT <= difference && difference <= LIMIT)
+            assert(trit_sub_table(x, y) == encode(difference));
     }
     // Boundary cases: the maximal opposite-signed values cancel.
     assert(trit_add_ripple(encode(LIMIT), encode(-LIMIT)) == 0);
     assert(trit_add_ripple(encode(1), encode(-1)) == 0);
     assert(trit_add_ripple(encode(LIMIT - 1), encode(1)) == encode(LIMIT));
+    for (int start : {0, 28}) {
+        i64 scale = 1;
+        for (int i = 0; i < start; ++i) scale *= 3;
+        // The upper test reaches the top trit and tests lost carry handling.
+        for (int a = -40; a <= 40; ++a) {
+            for (int b = -40; b <= 40; ++b) {
+                i64 value = static_cast<i64>(a + b) * scale;
+                if (value > LIMIT) value -= 2 * LIMIT + 1;
+                if (value < -LIMIT) value += 2 * LIMIT + 1;
+                u64 x = encode(static_cast<i64>(a) * scale);
+                u64 y = encode(static_cast<i64>(b) * scale);
+                assert(trit_add_bct(x, y) == encode(value));
+                assert(trit_add_bct_fast(x, y) == encode(value));
+#ifdef WITH_ASM
+                assert(asm_trit_add_bct(x, y) == encode(value));
+#endif
+            }
+        }
+    }
     for (int i = 0; i < 200000; ++i) {
         i64 a = static_cast<i64>(next_random(state) % 2000001) - 1000000;
         i64 b = static_cast<i64>(next_random(state) % 2000001) - 1000000;
         u64 x = encode(a), y = encode(b);
         assert(trit_mul_table(x, y) == encode(a * b));
+        assert(trit_mul_low16(x, y) == encode(a * b));
+        assert(trit_mul_low16_hybrid(x, y) == encode(a * b));
+        assert(trit_mul_hybrid(x, y) == encode(a * b));
+        assert(bct_mul_table(to_biased_bct(x), to_biased_bct(y)) == to_biased_bct(encode(a * b)));
         assert(trit_mul_table(x, y) == trit_mul_native(x, y));
         if (b != 0) {
             assert(trit_div_table(x, y) == encode(a / b));
+            assert(trit_div_fp_checked(x, y) == encode(a / b));
+            assert(trit_div_hybrid(x, y) == encode(a / b));
+            assert(bct_div_table(to_biased_bct(x), to_biased_bct(y)) == to_biased_bct(encode(a / b)));
             assert(trit_div_table(x, y) == trit_div_native(x, y));
         }
     }
     assert(trit_mul_table(encode(LIMIT), encode(1)) == encode(LIMIT));
     assert(trit_mul_table(encode(-LIMIT), encode(-1)) == encode(LIMIT));
     assert(trit_div_table(encode(-LIMIT), encode(-1)) == encode(LIMIT));
+    for (int i = 0; i < 200000; ++i) {
+        i64 a = decode(random_valid(state));
+        i64 b = decode(random_valid(state));
+        if (b == 0) b = 1;
+        assert(div_i64_fp_checked(a, b) == a / b);
+        assert(div_i64_fp_checked(a, 1) == a);
+        assert(div_i64_fp_checked(a, -1) == -a);
+        if (a != -1 && a < LIMIT)
+            assert(div_i64_fp_checked(a, a + 1) == a / (a + 1));
+    }
+    {
+        i64 power = 1;
+        for (unsigned k = 0; k < 32; ++k, power *= 3) {
+            for (i64 a = -100; a <= 100; ++a) {
+                u64 x = encode(a);
+                assert(trit_div_pow3(x, k, false) == encode(a / power));
+                assert(trit_div_pow3(x, k, true) == encode(a / -power));
+                if (static_cast<__int128>(a) * power <= LIMIT &&
+                    static_cast<__int128>(a) * power >= -LIMIT) {
+                    assert(trit_mul_pow3(x, k, false) == encode(a * power));
+                    assert(trit_mul_pow3(x, k, true) == encode(-a * power));
+                }
+            }
+            for (int i = 0; i < 1000; ++i) {
+                u64 x = random_valid(state);
+                i64 a = decode(x);
+                assert(trit_div_pow3(x, k, false) == encode(a / power));
+                assert(trit_div_pow3(x, k, true) == encode(a / -power));
+            }
+        }
+    }
+    for (int i = 0; i < 20000; ++i) {
+        i64 a = static_cast<i64>(next_random(state) % 20001) - 10000;
+        unsigned k = static_cast<unsigned>(next_random(state) % 8) + 1;
+        i64 power = 1;
+        for (unsigned j = 0; j < k; ++j) power *= 3;
+        i64 b = ((i & 1) ? -1 : 1) + ((i & 2) ? -power : power);
+        assert(trit_mul_sparse2_mod(encode(a), encode(b)) == encode(a * b));
+        assert(trit_mul_hybrid(encode(a), encode(b)) == encode(a * b));
+    }
+    for (int i = 0; i < 20000; ++i) {
+        u64 x = random_valid(state);
+        unsigned high = static_cast<unsigned>(next_random(state) % 31) + 1;
+        unsigned low = static_cast<unsigned>(next_random(state) % high);
+        u64 sparse = (((i & 1) ? 1ULL : 2ULL) << (2 * high)) |
+                     (((i & 2) ? 1ULL : 2ULL) << (2 * low));
+        i64 y = decode(sparse);
+        __int128 product = static_cast<__int128>(decode(x)) * y;
+        __int128 modulus = static_cast<__int128>(2 * LIMIT + 1);
+        __int128 residue = (product + LIMIT) % modulus;
+        if (residue < 0) residue += modulus;
+        assert(trit_mul_sparse2_mod(x, sparse) == encode(static_cast<i64>(residue - LIMIT)));
+    }
+    for (int i = 0; i < 20000; ++i) {
+        i64 a = static_cast<i64>(next_random(state) % 6561) - 3280;
+        i64 b = static_cast<i64>(next_random(state) % 6561) - 3280;
+        assert(trit_mul_low8_kronecker(encode(a), encode(b)) == encode(a * b));
+    }
     {
         std::array<u64, 4> a{}, b{}, out{};
         for (int i = 0; i < 4; ++i) {
@@ -487,7 +897,40 @@ static void benchmark() {
     report("empty", [](u64 x, u64) { return x; });
     report("trit_add_ripple", trit_add_ripple);
     report("trit_add_chunk4", trit_add_chunk4);
+    report("trit_add_bct", trit_add_bct);
+    report("trit_add_bct_fast", trit_add_bct_fast);
+    report("trit_sub_bct_fast", trit_sub_bct_fast);
+    report("trit_sub_bct_neg", trit_sub_bct_negated);
+    {
+        std::vector<u64> bx(N), by(N);
+        for (std::size_t i = 0; i < N; ++i) {
+            bx[i] = to_biased_bct(xs[i]);
+            by[i] = to_biased_bct(ys[i]);
+        }
+        auto report_bct = [&](const char *name, auto fn) {
+            std::array<double, 3> samples{};
+            for (auto &sample : samples) sample = bench(bx, by, fn, ROUNDS, sink);
+            std::sort(samples.begin(), samples.end());
+            std::printf("%-22s %.3f ns/op (median), sink=%llu\n", name, samples[1],
+                        static_cast<unsigned long long>(sink));
+        };
+        report_bct("bct_add_direct", bct_add_direct);
+        report_bct("bct_sub_direct", bct_sub_direct);
+        report_bct("bct_neg", [](u64 x, u64) { return bct_neg(x); });
+        report_bct("bct_min", bct_min);
+        report_bct("bct_max", bct_max);
+        report_bct("bct_product", bct_product);
+        report_bct("bct_cycle", [](u64 x, u64) { return bct_cycle(x); });
+        report_bct("bct_zero_count", [](u64 x, u64) { return __builtin_popcountll(x & EVEN); });
+        report_bct("bct_less", [](u64 x, u64 y) { return x < y; });
+        report_bct("bct_mul_table", bct_mul_table);
+        report_bct("bct_div_table", bct_div_table);
+    }
+#ifdef WITH_ASM
+    report("asm_trit_add_bct", asm_trit_add_bct);
+#endif
     report("trit_add_table", trit_add_table);
+    report("trit_sub_table", trit_sub_table);
     report("add_table_portable", trit_add_table_portable);
     report("trit_add_reference", trit_add_reference);
     report("trit_min", trit_min);
@@ -506,8 +949,82 @@ static void benchmark() {
     report("zero_count", [](u64 x, u64) { return zero_count(x); });
     report("trit_mul_native", trit_mul_native);
     report("trit_mul_table", trit_mul_table);
+    report("trit_mul_low16", trit_mul_low16);
+    report("trit_mul_low16_hyb", trit_mul_low16_hybrid);
+    {
+        std::vector<u64> x8(N), y8(N);
+        for (std::size_t i = 0; i < N; ++i) {
+            x8[i] = encode(static_cast<i64>(next_random(state) % 6561) - 3280);
+            y8[i] = encode(static_cast<i64>(next_random(state) % 6561) - 3280);
+        }
+        auto report8 = [&](const char *name, auto fn) {
+            std::array<double, 3> samples{};
+            for (auto &sample : samples) sample = bench(x8, y8, fn, ROUNDS, sink);
+            std::sort(samples.begin(), samples.end());
+            std::printf("%-22s %.3f ns/op (median), sink=%llu\n", name, samples[1],
+                        static_cast<unsigned long long>(sink));
+        };
+        report8("mul_low8_kronecker", trit_mul_low8_kronecker);
+        report8("mul_low8_table", trit_mul_table);
+    }
+    report("trit_mul_hybrid", trit_mul_hybrid);
     report("trit_div_native", trit_div_native);
     report("trit_div_table", trit_div_table);
+    report("trit_div_fp_check", trit_div_fp_checked);
+    report("trit_div_hybrid", trit_div_hybrid);
+    {
+        std::vector<u64> powers(N);
+        for (std::size_t i = 0; i < N; ++i) {
+            i64 value = 1;
+            for (std::size_t j = 0; j < i % 10; ++j) value *= 3;
+            powers[i] = encode((i & 1) ? -value : value);
+        }
+        auto report_power = [&](const char *name, auto fn) {
+            std::array<double, 3> samples{};
+            for (auto &sample : samples) sample = bench(xs, powers, fn, ROUNDS, sink);
+            std::sort(samples.begin(), samples.end());
+            std::printf("%-22s %.3f ns/op (median), sink=%llu\n", name, samples[1],
+                        static_cast<unsigned long long>(sink));
+        };
+        report_power("mul_pow3_hybrid", trit_mul_hybrid);
+        report_power("mul_pow3_table", trit_mul_table);
+        std::vector<u64> sparse2(N);
+        for (std::size_t i = 0; i < N; ++i) {
+            i64 power = 1;
+            for (std::size_t j = 0; j < 1 + i % 9; ++j) power *= 3;
+            sparse2[i] = encode(((i & 1) ? -1 : 1) + ((i & 2) ? -power : power));
+        }
+        auto report_sparse = [&](const char *name, auto fn) {
+            std::array<double, 3> samples{};
+            for (auto &sample : samples) sample = bench(xs, sparse2, fn, ROUNDS, sink);
+            std::sort(samples.begin(), samples.end());
+            std::printf("%-22s %.3f ns/op (median), sink=%llu\n", name, samples[1],
+                        static_cast<unsigned long long>(sink));
+        };
+        report_sparse("mul_sparse2_direct", trit_mul_sparse2_mod);
+        report_sparse("mul_sparse2_hybrid", trit_mul_hybrid);
+        report_sparse("mul_sparse2_table", trit_mul_table);
+        report_power("div_pow3_hybrid", trit_div_hybrid);
+        report_power("div_pow3_table", trit_div_table);
+        std::vector<u64> exact(N), units(N);
+        for (std::size_t i = 0; i < N; ++i) {
+            i64 small = static_cast<i64>(i % 201) - 100;
+            exact[i] = trit_mul_pow3(encode(small), 9, false);
+            units[i] = (i & 1) ? 1ULL : 2ULL;
+        }
+        auto report_exact = [&](const char *name, const std::vector<u64> &dividends,
+                                const std::vector<u64> &divisors, auto fn) {
+            std::array<double, 3> samples{};
+            for (auto &sample : samples) sample = bench(dividends, divisors, fn, ROUNDS, sink);
+            std::sort(samples.begin(), samples.end());
+            std::printf("%-22s %.3f ns/op (median), sink=%llu\n", name, samples[1],
+                        static_cast<unsigned long long>(sink));
+        };
+        report_exact("div_pow3_exact_hyb", exact, powers, trit_div_hybrid);
+        report_exact("div_pow3_exact_tbl", exact, powers, trit_div_table);
+        report_exact("div_unit_hybrid", xs, units, trit_div_hybrid);
+        report_exact("div_unit_table", xs, units, trit_div_table);
+    }
 #ifdef WITH_ASM
     report("asm_trit_min", asm_trit_min);
     report("asm_trit_max", asm_trit_max);
@@ -545,8 +1062,8 @@ static void benchmark() {
 
 template <typename Value, typename Add, typename Sub>
 static Value tit_cum(const std::vector<Value> &array, int index,
-                     Add add, Sub sub) {
-    Value result = 0;
+                     Add add, Sub sub, Value zero) {
+    Value result = zero;
     int p = 1;
     while (index > 0) {
         if (index % 3 == 1) {
@@ -581,37 +1098,63 @@ static void tit_benchmark() {
     // Mirrors the scalar update / prefix query loops in the user's TIT article.
     constexpr int N = 9841; // (3^9 - 1) / 2
     constexpr int OPS = 100000;
-    struct Operation { int index; int delta; bool query; };
+    struct Operation { int index; int delta; bool query; u64 packed_delta; u64 bct_delta; };
     std::vector<Operation> operations;
     operations.reserve(OPS);
     u64 state = 0x8F03C263C928E13BULL;
     for (int i = 0; i < OPS; ++i) {
         int index = static_cast<int>(next_random(state) % N) + 1;
         int delta = static_cast<int>(next_random(state) % 21) - 10;
-        operations.push_back({index, delta, static_cast<bool>(i & 1)});
+        u64 packed_delta = encode_table(delta);
+        operations.push_back({index, delta, static_cast<bool>(i & 1),
+                              packed_delta, to_biased_bct(packed_delta)});
     }
     auto native_add = [](i64 a, i64 b) { return a + b; };
     auto native_sub = [](i64 a, i64 b) { return a - b; };
     auto packed_add = [](u64 a, u64 b) { return trit_add_table(a, b); };
     auto packed_sub = [](u64 a, u64 b) { return trit_add_table(a, trit_neg(b)); };
+    auto packed_bct_add = [](u64 a, u64 b) { return trit_add_bct_fast(a, b); };
+    auto packed_bct_sub = [](u64 a, u64 b) { return trit_add_bct_fast(a, trit_neg(b)); };
+    auto direct_bct_add = [](u64 a, u64 b) { return bct_add_direct(a, b); };
+    auto direct_bct_sub = [](u64 a, u64 b) { return bct_add_direct(a, bct_neg(b)); };
     std::vector<i64> native(N + 1);
     std::vector<u64> packed(N + 1);
     auto start_native = std::chrono::steady_clock::now();
     i64 checksum_native = 0;
     for (const auto &op : operations) {
-        if (op.query) checksum_native += tit_cum(native, op.index, native_add, native_sub);
+        if (op.query) checksum_native += tit_cum(native, op.index, native_add, native_sub, static_cast<i64>(0));
         else tit_update(native, op.index, static_cast<i64>(op.delta), native_add);
     }
     auto end_native = std::chrono::steady_clock::now();
     auto start_packed = std::chrono::steady_clock::now();
     i64 checksum_packed = 0;
     for (const auto &op : operations) {
-        if (op.query) checksum_packed += decode_table(tit_cum(packed, op.index, packed_add, packed_sub));
-        else tit_update(packed, op.index, encode_table(op.delta), packed_add);
+        if (op.query) checksum_packed += decode_table(tit_cum(packed, op.index, packed_add, packed_sub, static_cast<u64>(0)));
+        else tit_update(packed, op.index, op.packed_delta, packed_add);
     }
     auto end_packed = std::chrono::steady_clock::now();
+    std::vector<u64> packed_bct(N + 1);
+    auto start_bct = std::chrono::steady_clock::now();
+    i64 checksum_bct = 0;
+    for (const auto &op : operations) {
+        if (op.query) checksum_bct += decode_table(tit_cum(packed_bct, op.index, packed_bct_add, packed_bct_sub, static_cast<u64>(0)));
+        else tit_update(packed_bct, op.index, op.packed_delta, packed_bct_add);
+    }
+    auto end_bct = std::chrono::steady_clock::now();
+    std::vector<u64> direct_bct(N + 1, EVEN);
+    auto start_direct = std::chrono::steady_clock::now();
+    i64 checksum_direct = 0;
+    for (const auto &op : operations) {
+        if (op.query) checksum_direct += decode_bct_table(tit_cum(direct_bct, op.index, direct_bct_add, direct_bct_sub, EVEN));
+        else tit_update(direct_bct, op.index, op.bct_delta, direct_bct_add);
+    }
+    auto end_direct = std::chrono::steady_clock::now();
     assert(checksum_native == checksum_packed);
+    assert(checksum_native == checksum_bct);
+    assert(checksum_native == checksum_direct);
     for (int i = 1; i <= N; ++i) assert(native[i] == decode_table(packed[i]));
+    for (int i = 1; i <= N; ++i) assert(native[i] == decode_table(packed_bct[i]));
+    for (int i = 1; i <= N; ++i) assert(native[i] == decode_bct_table(direct_bct[i]));
     auto per_op = [](auto a, auto b) {
         return std::chrono::duration<double, std::nano>(b - a).count() / OPS;
     };
@@ -619,10 +1162,15 @@ static void tit_benchmark() {
                 per_op(start_native, end_native), static_cast<long long>(checksum_native));
     std::printf("TIT packed: %.2f ns/op, checksum=%lld\n",
                 per_op(start_packed, end_packed), static_cast<long long>(checksum_packed));
+    std::printf("TIT packed BCT: %.2f ns/op, checksum=%lld\n",
+                per_op(start_bct, end_bct), static_cast<long long>(checksum_bct));
+    std::printf("TIT BCT native: %.2f ns/op, checksum=%lld\n",
+                per_op(start_direct, end_direct), static_cast<long long>(checksum_direct));
 }
 
 int main(int argc, char **argv) {
     verify();
     if (argc > 1 && argv[1][0] == 'b') benchmark();
     if (argc > 1 && argv[1][0] == 't') tit_benchmark();
+    return 0;
 }

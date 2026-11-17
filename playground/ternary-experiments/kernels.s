@@ -84,4 +84,57 @@ asm_trit_plus_count_raw:
     ret
 .size asm_trit_plus_count_raw, .-asm_trit_plus_count_raw
 
+.globl asm_trit_add_bct
+.type asm_trit_add_bct, @function
+asm_trit_add_bct:
+    # Convert one-hot packed trits to the biased BCT encoding.
+    movabsq $0x5555555555555555, %r10
+    movq %rdi, %rax
+    shrq $1, %rax
+    notq %rax
+    andq %r10, %rax
+    xorq %rax, %rdi
+    movq %rsi, %rax
+    shrq $1, %rax
+    notq %rax
+    andq %r10, %rax
+    xorq %rax, %rsi
+
+    subq $8, %rsp
+    call .L_unsigned_bct_add
+    movq %rax, %rdi
+    movabsq $0x5555555555555556, %rsi
+    call .L_unsigned_bct_add
+    addq $8, %rsp
+
+    # The conversion is an involution.
+    movq %rax, %rdx
+    shrq $1, %rdx
+    notq %rdx
+    andq %r10, %rdx
+    xorq %rdx, %rax
+    ret
+.size asm_trit_add_bct, .-asm_trit_add_bct
+
+.L_unsigned_bct_add:
+    # rdi=a, rsi=b, rax=result. The binary carry chain computes all trits.
+    movabsq $0x5555555555555555, %rdx
+    leaq (%rdi,%rdx), %rcx
+    movq %rsi, %rax
+    addq %rcx, %rax
+    sbbq %r8, %r8
+    notq %r8
+    movabsq $0x4000000000000000, %r9
+    andq %r9, %r8
+    movq %rsi, %rdx
+    xorq %rcx, %rdx
+    xorq %rax, %rdx
+    notq %rdx
+    movabsq $0x5555555555555554, %r9
+    andq %r9, %rdx
+    shrq $2, %rdx
+    orq %r8, %rdx
+    subq %rdx, %rax
+    ret
+
 .section .note.GNU-stack,"",@progbits
