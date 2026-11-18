@@ -36,88 +36,6 @@ static void emit_put_error(void)
         stdout);
 }
 
-static void emit_is_memory(void)
-{
-    fputs(
-        "##  (%dil : char) -> %al : bool\n"
-        "is_memory:\n"
-        "    cmpb $'C', %dil\n"
-        "    je .L_is_memory\n"
-        "    cmpb $'R', %dil\n"
-        "    je .L_is_memory\n"
-        "    cmpb $'P', %dil\n"
-        "    je .L_is_memory\n"
-        "    cmpb $'M', %dil\n"
-        "    je .L_is_memory\n"
-        "\n"
-        "    movb $0, %al\n"
-        "    ret\n"
-        "\n"
-        "    .L_is_memory:\n"
-        "    movb $1, %al\n"
-        "    ret\n"
-        "\n",
-        stdout);
-}
-
-static void emit_is_number(void)
-{
-    fputs(
-        "##  (%dil : char) -> %al : bool\n"
-        "is_number:\n"
-        "    cmpb $'S', %dil\n"
-        "    je .L_is_number1\n"
-        "    cmpb $'0', %dil\n"
-        "    jl .L_is_number0\n"
-        "    cmpb $'9', %dil\n"
-        "    jg .L_is_number0\n"
-        "    jmp .L_is_number1\n"
-        "\n"
-        "    .L_is_number0:\n"
-        "    movb $0, %al\n"
-        "    ret\n"
-        "    .L_is_number1:\n"
-        "    movb $1, %al\n"
-        "    ret\n"
-        "\n",
-        stdout);
-}
-
-static void emit_is_operand(void)
-{
-    fputs(
-        "##  (%dil : char) -> %al : bool\n"
-        "is_operand:\n"
-        "    cmpb $'+', %dil\n"
-        "    je .L_is_operand\n"
-        "    cmpb $'-', %dil\n"
-        "    je .L_is_operand\n"
-        "    cmpb $'*', %dil\n"
-        "    je .L_is_operand\n"
-        "    cmpb $'/', %dil\n"
-        "    je .L_is_operand\n"
-        "    movb $0, %al\n"
-        "    ret\n"
-        "\n"
-        "    .L_is_operand:\n"
-        "    movb $1, %al\n"
-        "    ret\n"
-        "\n",
-        stdout);
-}
-
-static void emit_is_equal(void)
-{
-    fputs(
-        "##  (%dil : char) -> %al : bool\n"
-        "is_equal:\n"
-        "    cmpb $'=', %dil\n"
-        "    setz %al\n"
-        "    ret\n"
-        "\n",
-        stdout);
-}
-
 static void emit_reset(void)
 {
     fputs(
@@ -133,7 +51,7 @@ static void emit_reset(void)
 static void emit_my_add(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_add:\n"
         "    movl %edi,%eax\n"
         "    addl %esi,%eax\n"
@@ -149,7 +67,7 @@ static void emit_my_add(void)
 static void emit_my_sub(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_sub:\n"
         "    movl %edi,%eax\n"
         "    subl %esi,%eax\n"
@@ -165,7 +83,7 @@ static void emit_my_sub(void)
 static void emit_my_mul(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_mul:\n"
         "    movl %edi,%eax\n"
         "    imul %esi,%eax\n"
@@ -181,7 +99,7 @@ static void emit_my_mul(void)
 static void emit_my_div(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_div:\n"
         "    testl %esi,%esi\n"
         "    jz .L_my_div\n"
@@ -351,10 +269,6 @@ static void emit_header(void)
 {
     emit_data();
     emit_put_error();
-    emit_is_memory();
-    emit_is_number();
-    emit_is_operand();
-    emit_is_equal();
     emit_reset();
     emit_my_add();
     emit_my_sub();

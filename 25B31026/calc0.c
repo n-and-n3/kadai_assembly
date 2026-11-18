@@ -1,16 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-// 入出力周りのテンプレート
-void printc(char tmp){
-    printf("%c\n", tmp);
-}
-void prints(char* tmp){
-    printf("%s\n", tmp);
-}
-void printi(int tmp){
-    printf("%d\n", tmp);
-}
 
 // グローバル変数
 bool hasError = false;
@@ -19,7 +9,7 @@ char op = '+';
 int memory = 0; // メモリーの値
 int res = 0; // レジスタの値
 int cur = 0; // 今入力されている値
-int states = 0; // 0:数字入力状態, 1:あた
+int states = 0; // 0:数字入力状態, 1:演算子入力状態
 
 // 関数定義
 bool is_memory(char x){
