@@ -105,7 +105,7 @@ static void emit_my_div(void)
         "    jz .L_my_div\n"
         "    movl %edi,%eax\n"
         "    cltd\n"
-        "    idiv %esi\n"
+        "    idivl %esi\n"
         "    ret\n"
         "    .L_my_div:\n"
         "    call put_error\n"

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1050" role="img" aria-labelledby="title desc">
+  <title id="title">手書き図に沿った calc0.c の状態遷移図</title>
+  <desc id="desc">左に数値入力状態、右に演算キー状態。上に concat と add、mul。下に op_memory、eval と add、sub、mul、div。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#292929" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      text { font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif; font-size: 29px; fill: #292929; }
+      .state { text-anchor: middle; font-size: 32px; }
+      .line { fill: none; stroke: #292929; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .arrow { marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1500" height="1050" fill="#fff"/>
+
+  <!-- 手書き図の上側: 数値キーから concat、そこから add / mul。 -->
+  <text x="365" y="137">数値入力</text>
+  <text x="365" y="184">concat:</text>
+  <path class="line" d="M 535 169 H 573 M 573 133 V 212 M 573 133 H 611 M 573 212 H 611"/>
+  <text x="628" y="143">add</text>
+  <text x="628" y="222">mul</text>
+
+  <!-- 左右の位置と円形の状態は手書き図に合わせる。 -->
+  <circle class="line" cx="575" cy="510" r="98"/>
+  <text x="575" y="505" class="state">数値</text>
+  <text x="575" y="549" class="state">入力</text>
+  <circle class="line" cx="1095" cy="510" r="98"/>
+  <text x="1095" y="505" class="state">演算キー</text>
+  <text x="1095" y="549" class="state">入力</text>
+
+  <!-- 状態自身へのループ。 -->
+  <path class="line arrow" d="M 532 420 C 436 361 454 294 569 303 C 681 312 679 375 618 421"/>
+  <path class="line arrow" d="M 1190 477 C 1333 407 1340 629 1192 552"/>
+  <text x="1254" y="690">last_op = op</text>
+
+  <!-- 手書き図と同じ上下関係の、左右の遷移矢印。 -->
+  <path class="line arrow" d="M 996 476 H 689"/>
+  <text x="756" y="450">eval: concat:</text>
+  <path class="line arrow" d="M 673 543 H 981"/>
+  <text x="778" y="596">op = input</text>
+
+  <!-- = と P/M は数値状態から数値状態へのループ。 -->
+  <path class="line arrow" d="M 500 574 C 356 637 407 737 568 609"/>
+  <text x="232" y="704">=, P, M</text>
+
+  <!-- 手書き図の下側: op_memory → eval → 算術関数。 -->
+  <text x="142" y="857">op_memory</text>
+  <path class="line arrow" d="M 338 847 C 393 842 420 785 482 785"/>
+  <text x="507" y="796">eval:</text>
+  <path class="line" d="M 596 784 H 655 M 655 762 V 965 M 655 762 H 699 M 655 829 H 699 M 655 897 H 699 M 655 965 H 699"/>
+  <text x="718" y="771">add</text>
+  <text x="718" y="838">sub</text>
+  <text x="718" y="906">mul</text>
+  <text x="718" y="974">div</text>
+
+  <text x="1055" y="875">R: res = memory</text>
+  <text x="1055" y="925">C: memory = 0</text>
+</svg>

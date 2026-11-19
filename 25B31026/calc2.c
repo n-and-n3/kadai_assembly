@@ -133,7 +133,7 @@ static void emit_reset(void)
 static void emit_my_add(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_add:\n"
         "    movl %edi,%eax\n"
         "    addl %esi,%eax\n"
@@ -149,7 +149,7 @@ static void emit_my_add(void)
 static void emit_my_sub(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_sub:\n"
         "    movl %edi,%eax\n"
         "    subl %esi,%eax\n"
@@ -165,7 +165,7 @@ static void emit_my_sub(void)
 static void emit_my_mul(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_mul:\n"
         "    movl %edi,%eax\n"
         "    imul %esi,%eax\n"
@@ -182,7 +182,7 @@ static void emit_my_mul(void)
 static void emit_my_div(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_div:\n"
         "    testl %esi,%esi\n"
         "    jz .L_my_div2\n"
@@ -195,7 +195,7 @@ static void emit_my_div(void)
         "    .L_my_div1:\n"
         "    movl %edi,%eax\n"
         "    cltd\n"
-        "    idiv %esi\n"
+        "    idivl %esi\n"
         "    ret\n"
         "\n"
         "    .L_my_div2:\n"

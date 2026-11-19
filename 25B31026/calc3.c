@@ -133,7 +133,7 @@ static void emit_reset(void)
 static void emit_my_add(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_add:\n"
         "    movl %edi,%eax\n"
         "    addl %esi,%eax\n"
@@ -149,7 +149,7 @@ static void emit_my_add(void)
 static void emit_my_sub(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_sub:\n"
         "    movl %edi,%eax\n"
         "    subl %esi,%eax\n"
@@ -211,7 +211,7 @@ static void emit_my_mul(void)
 static void emit_my_div(void)
 {
     fputs(
-        "## (%edi : int, %esi : int) -> %eax\n"
+        "## (%edi : int, %esi : int) -> %eax : int\n"
         "my_div:\n"
         "    testl %esi,%esi\n"
         "    jz .L_my_div2\n"
@@ -248,7 +248,7 @@ static void emit_my_div(void)
         "\n"
         "    .L_my_div_loop1: # while の開始\n"
         "    cmp %ecx, %esi\n"
-        "    jg .L_my_div_end_loop # break\n"
+        "    ja .L_my_div_end_loop # break\n"
         "\n"
         "        shll $1, %r8d\n"
         "        shll $1, %esi\n"

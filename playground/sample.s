@@ -85,7 +85,7 @@ reset:
     movb $'+',op(%rip)
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_add:
     movl %edi,%eax
     addl %esi,%eax
@@ -95,7 +95,7 @@ my_add:
     call put_error
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_sub:
     movl %edi,%eax
     subl %esi,%eax
@@ -105,7 +105,7 @@ my_sub:
     call put_error
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_mul:
     movl %edi,%edx
     xorl %esi,%edx
@@ -144,10 +144,7 @@ my_mul:
 
     ret
 
-
-
-
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_div:
     testl %esi,%esi
     jz .L_my_div2
@@ -213,7 +210,6 @@ my_div:
         negl %eax
     .L_my_div_skip_neg:
     ret
-
 
 ## (%edi : int, %esi : int, %dl : char) -> %eax : int
 eval:
@@ -353,70 +349,10 @@ main:
     call concat
     movl %eax,cur(%rip)
 
-# *
-    movb $'*',op(%rip)
-
-# 2
-    movl res(%rip),%edi
-    movl cur(%rip),%esi
-    movb last_op(%rip),%dl
-    call eval
-    movl %eax,res(%rip)
-
-    movb op(%rip),%dl
-    movb %dl,last_op(%rip)
-
-    call reset
-
-    movl cur(%rip),%edi
-    movb $'2',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# *
-    movb $'*',op(%rip)
-
-# 3
-    movl res(%rip),%edi
-    movl cur(%rip),%esi
-    movb last_op(%rip),%dl
-    call eval
-    movl %eax,res(%rip)
-
-    movb op(%rip),%dl
-    movb %dl,last_op(%rip)
-
-    call reset
-
-    movl cur(%rip),%edi
-    movb $'3',%sil
-    call concat
-    movl %eax,cur(%rip)
-
-# *
-    movb $'*',op(%rip)
-
-# 4
-    movl res(%rip),%edi
-    movl cur(%rip),%esi
-    movb last_op(%rip),%dl
-    call eval
-    movl %eax,res(%rip)
-
-    movb op(%rip),%dl
-    movb %dl,last_op(%rip)
-
-    call reset
-
-    movl cur(%rip),%edi
-    movb $'4',%sil
-    call concat
-    movl %eax,cur(%rip)
-
 # /
     movb $'/',op(%rip)
 
-# 6
+# 1
     movl res(%rip),%edi
     movl cur(%rip),%esi
     movb last_op(%rip),%dl
@@ -429,7 +365,7 @@ main:
     call reset
 
     movl cur(%rip),%edi
-    movb $'6',%sil
+    movb $'1',%sil
     call concat
     movl %eax,cur(%rip)
 

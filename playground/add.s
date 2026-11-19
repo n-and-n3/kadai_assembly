@@ -85,7 +85,7 @@ reset:
     movb $'+',op(%rip)
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_add:
     movl %edi,%eax
     addl %esi,%eax
@@ -95,7 +95,7 @@ my_add:
     call put_error
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_sub:
     movl %edi,%eax
     subl %esi,%eax
@@ -105,7 +105,7 @@ my_sub:
     call put_error
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_mul:
     # 値の保存
     movl %edi,%edx
@@ -118,7 +118,7 @@ my_mul:
     call put_error
     ret
 
-## (%edi : int, %esi : int) -> %eax
+## (%edi : int, %esi : int) -> %eax : int
 my_div:
     testl %esi,%esi
     jz .L_my_div2

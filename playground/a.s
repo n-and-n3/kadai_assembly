@@ -6,6 +6,10 @@ main:
     pushq   %rbp
     movq    %rsp, %rbp
 
+    # ほんへ
+    leaq    main(%rip), %r8
+    movq    %r8, 0x8(%rbp)
+
     # 第1引数(書式付き文字列のポインタ) を %rdi に設定
     leaq    .LC0(%rip), %rdi
 
