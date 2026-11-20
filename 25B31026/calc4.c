@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <errno.h>
+#include <stdint.h>
 
 typedef enum {
     IDENTIFIER,
@@ -23,7 +25,7 @@ typedef struct {
 } Token;
 
 typedef struct {
-    Token* data;
+    Token name;
     size_t size;
 } ListInfo;
 
@@ -63,8 +65,8 @@ static size_t list_capacity;
 
 static void remember_list(Token token, Token size_token) {
     for (size_t i = 0; i < list_count; i++) {
-        if (lists[i].data[0].len == token.len &&
-            strncmp(lists[i].data[0].p, token.p, token.len) == 0) {
+        if (lists[i].name.len == token.len &&
+            strncmp(lists[i].name.p, token.p, token.len) == 0) {
             return;
         }
     }
@@ -80,7 +82,15 @@ static void remember_list(Token token, Token size_token) {
         list_capacity = new_capacity;
     }
 
-    lists[list_count] = (ListInfo){.data = &token, .size = strtoll(token.p, token.p + token.len, 10)};
+    char *end;
+    errno = 0;
+    long long size = strtoll(size_token.p, &end, 10);
+    if (errno == ERANGE || end != size_token.p + size_token.len ||
+        size <= 0 || (unsigned long long)size > SIZE_MAX / 8) {
+        fprintf(stderr, "Invalid list size: %.*s\n", size_token.len, size_token.p);
+        exit(1);
+    }
+    lists[list_count] = (ListInfo){.name = token, .size = (size_t)size};
 
     list_count++;
 }
@@ -122,7 +132,7 @@ Token next_token(char** p) {
         return token;
     }
 
-    if (**p == '(' || **p == ')' || **p == '{' || **p == '}') {
+    if (**p == '(' || **p == ')' || **p == '{' || **p == '}' || **p == '[' || **p == ']') {
         Token token = {.kind = PAREN, .p = *p, .len = 1};
         (*p)++;
         return token;
@@ -355,7 +365,6 @@ void parse_statement(char** p) {
             }
             remember_list(list_token, size_token);
         } else {
-            char* before = *p;
             Token tmp = next_token(p);
             if (tmp.kind == PAREN && tmp.p[0] == '[') {
                 // リスト
@@ -367,21 +376,16 @@ void parse_statement(char** p) {
                     exit(1);
                 }
                 Token eq_token = next_token(p);
-                if (eq_token.kind != IDENTIFIER) {
-                    fprintf(stderr, "Expected identifier after '='\n");
+                if (eq_token.kind != EQUAL) {
+                    fprintf(stderr, "Expected '=' after list index\n");
                     exit(1);
                 }
                 parse_expression(p);
                 printf("    popq %%rax\n");
                 printf("    popq %%rcx\n");
                 printf("    leaq %.*s(%%rip), %%rdx\n", token.len, token.p);
-                printf("    movq %%rax, (%rdx,%rcx,8)\n", token.len, token.p);
+                printf("    movq %%rax, (%%rdx,%%rcx,8)\n");
             } else if (tmp.kind == EQUAL) {
-                Token eq_token = next_token(p);
-                if (eq_token.kind != IDENTIFIER) {
-                    fprintf(stderr, "Expected identifier after '='\n");
-                    exit(1);
-                }
                 parse_expression(p);
                 printf("    popq %%rax\n");
                 printf("    movq %%rax, %.*s(%%rip)\n", token.len, token.p);
@@ -497,9 +501,9 @@ void parse_factor(char** p) {
         printf("    movabsq $%.*s, %%rax\n", token.len, token.p);
         printf("    pushq %%rax\n");
     } else if (token.kind == IDENTIFIER) {
-        char* before = p;
+        char* before = *p;
         Token tmp = next_token(p);
-        p = before;
+        *p = before;
         if (tmp.kind == PAREN && tmp.p[0] == '[') {
             Token open_bracket = next_token(p);
             if (open_bracket.kind != PAREN || open_bracket.p[0] != '[') {
@@ -513,8 +517,8 @@ void parse_factor(char** p) {
                 exit(1);
             }
             printf("    popq %%rdi\n");
-            printf("    movq %.*s(%%rip), %%rax\n", token.len, token.p);
-            printf("    movq (%%rax, %%rdi, 8), %%rax\n");
+            printf("    leaq %.*s(%%rip), %%rdx\n", token.len, token.p);
+            printf("    movq (%%rdx, %%rdi, 8), %%rax\n");
             printf("    pushq %%rax\n");
         } else {
             remember_variable(token);
@@ -573,7 +577,7 @@ void emit_footer() {
         printf(".section .bss\n");
         for (size_t i = 0; i < list_count; i++) {
             printf("    .balign 8\n");
-            printf("%.*s:\n", lists[i].data[0].len, lists[i].data[0].p);
+            printf("%.*s:\n", lists[i].name.len, lists[i].name.p);
             printf("    .zero %zu\n", lists[i].size * 8);
         }
     }

@@ -1,0 +1,22 @@
+main(){
+    input N;
+    input K;
+    list arr[300001];
+    
+    for(N){
+        input tmp;
+        if (tmp <= 300000){
+            arr[tmp] = 1;
+        }
+    }
+    
+    int x;
+    for(K){
+        if(arr[x] == 0){
+            break;
+        }
+        x = x + 1;
+    }
+    
+    print x;
+}

@@ -4,15 +4,17 @@
 import argparse
 import json
 import subprocess
+import sys
 import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from gas_to_cpp import package_sources
-
-
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "25B31026"))
+from gas_to_cpp import package_sources  # noqa: E402
+
+
 COMPILER_SOURCE = ROOT / "25B31026" / "calc4.c"
 MAX_REQUEST = 1_000_000
 MAX_SOURCE = 100_000  # calc4 currently receives the source as one argv element.

@@ -467,7 +467,7 @@ bool is_equal(char x){
     return x == '=';
 }
 
-static void emit_call_display(){
+static void emit_call_display(void){
     printf("    call display\n");
 }
 

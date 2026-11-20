@@ -1,0 +1,19 @@
+main(){
+    input N;
+    input M;
+    list A[100];
+    int c;
+    int x;
+    x = 0;
+    for(N){
+        input a;
+        A[x] = a;
+        x = x + 1;
+    }
+    int ans;
+    for(M){
+        input ind;
+        ans = ans + A[ind-1];
+    }
+    print ans;
+}

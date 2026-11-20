@@ -28,7 +28,7 @@ bool is_equal(char x){
     return x == '=';
 }
 
-void reset(){
+void reset(void){
     cur = 0;
     op = '+';
 }
@@ -130,7 +130,7 @@ int concat(int x, char c){
     }
 }
 
-void display(){
+void display(void){
     if (hasError){
         printf("E\n");
     } else {

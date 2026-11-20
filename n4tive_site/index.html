@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101723">
+  <title>n4tive — editor & code test</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">n4</span><div><strong>n4tive</strong><small>editor / code test</small></div></div>
+    <div class="topbar-right"><span class="file-pill">main.n4</span><span class="runtime-pill">x86-64 GAS → GCC C++23</span></div>
+  </header>
+
+  <main class="page">
+    <div class="page-heading">
+      <div><p class="eyebrow">PLAYGROUND</p><h1>書いて、試して、提出コードをコピー。</h1><p class="intro">n4tive を手元のコンパイラで GAS に変換し、GCC C++23 に埋め込んで実行します。</p></div>
+      <div class="heading-actions"><button id="load-example" type="button" class="button subtle">例を読み込む</button><button id="download-n4" type="button" class="button subtle">.n4 を保存</button></div>
+    </div>
+
+    <div class="workspace">
+      <section class="panel source-panel" aria-labelledby="source-title">
+        <div class="panel-head"><div><span class="panel-index">01</span><h2 id="source-title">ソースコード</h2></div><span class="language-tag">n4tive</span></div>
+        <label class="sr-only" for="source">n4tive ソースコード</label>
+        <textarea id="source" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="n4tive ソースコード"></textarea>
+        <div class="editor-footer"><span>Ctrl + Enter でコードテスト</span><span id="source-size">0 bytes</span></div>
+      </section>
+
+      <section class="panel test-panel" aria-labelledby="test-title">
+        <div class="panel-head"><div><span class="panel-index">02</span><h2 id="test-title">コードテスト</h2></div><span class="test-label">単一ケース</span></div>
+        <div class="test-fields">
+          <label for="stdin">標準入力 <span>stdin</span></label>
+          <textarea id="stdin" spellcheck="false" placeholder="例: 5"></textarea>
+          <label for="expected">期待する出力 <span>任意</span></label>
+          <textarea id="expected" spellcheck="false" placeholder="例: 15"></textarea>
+          <p class="field-help">期待する出力を指定すると、実行結果を AC / WA で判定します。</p>
+          <div class="action-row"><button id="run" type="button" class="button primary">▶ コードテスト</button><button id="compile" type="button" class="button secondary">C++ を生成</button></div>
+        </div>
+        <div class="result" aria-live="polite">
+          <div class="result-head"><h3>実行結果</h3><div class="result-meta"><span id="status" class="status idle">未実行</span><span id="time"></span></div></div>
+          <div id="result-details" hidden>
+            <label for="stdout">標準出力</label><pre id="stdout" class="terminal"></pre>
+            <label for="stderr">エラー・診断</label><pre id="stderr" class="terminal muted"></pre>
+          </div>
+          <p id="result-placeholder" class="placeholder">入力を用意して「コードテスト」を押してください。</p>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel generated-panel" aria-labelledby="generated-title">
+      <div class="panel-head"><div><span class="panel-index">03</span><h2 id="generated-title">提出用 C++</h2></div><div class="generated-actions"><button id="copy-cpp" type="button" class="button small" disabled>コピー</button><button id="download-cpp" type="button" class="button small" disabled>Main.cpp を保存</button></div></div>
+      <p class="generated-note">生成した C++ は GCC C++23 として AtCoder に貼り付けられます。元の .n4 ソースは先頭のコメントに残ります。</p>
+      <textarea id="cpp" readonly spellcheck="false" aria-label="生成した提出用 C++" placeholder="「C++ を生成」または「コードテスト」で表示されます。"></textarea>
+    </section>
+    <footer>n4tive · コンパイラと実行環境はこのサーバー上で動きます。</footer>
+  </main>
+</body>
+</html>
