@@ -1,6 +1,6 @@
 # n4tive Playground
 
-ブラウザで `.n4` を編集し、標準入力付きコードテストを実行し、AtCoder提出用の GCC C++23 コードをコピーできる小さなサイトです。NeoShowcase（旧称や誤記の NewShowcase ではありません）の Runtime / Dockerfile ビルドを想定しています。`25B31026/calc4.c` と `25B31026/gas_to_cpp.py` を使います。LSPやユーザーアカウント、データベースはありません。エディタのソースと入力はブラウザの localStorage に保存します。
+ブラウザで `.n4` を編集し、標準入力付きコードテストを実行し、AtCoder提出用の GCC C++23 コードをコピーできる小さなサイトです。NeoShowcase（旧称や誤記の NewShowcase ではありません）の Runtime / Dockerfile ビルドを想定しています。`25B31026/calc4.c` と `25B31026/codes/gas_to_cpp.py` を使います。LSPやユーザーアカウント、データベースはありません。エディタのソースと入力はブラウザの localStorage に保存します。
 
 ## ローカルで動かす
 

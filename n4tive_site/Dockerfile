@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends g++ bubblewrap 
     && groupadd --gid 10001 n4tive && useradd --uid 10001 --gid 10001 --no-create-home n4tive
 WORKDIR /app
 COPY --from=build /app/bin/calc4 ./bin/calc4
-COPY 25B31026/gas_to_cpp.py ./25B31026/gas_to_cpp.py
+COPY 25B31026/codes/gas_to_cpp.py ./25B31026/codes/gas_to_cpp.py
 COPY n4tive_site/ ./n4tive_site/
 ENV HOST=0.0.0.0 PORT=8000 N4TIVE_COMPILER=/app/bin/calc4 \
     PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

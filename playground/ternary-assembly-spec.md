@@ -47,13 +47,13 @@ x86-64 の2進数CPU上で、平衡3進数の値と桁操作を扱う。ユー�
 - 開発時は `runtime.s` のような別ファイルに関数を置き、生成されたアセンブリと一緒に `gcc` でリンクする案を第一候補とする。これならランタイムを直接テストでき、生成コードにも同じ関数を使える。
 - x86-64 System V ABI を使う。整数／ポインタ引数は順に `%rdi`, `%rsi`, `%rdx`, `%rcx`, `%r8`, `%r9`、返り値は `%rax`。初期案では packed 64-bit 値を1引数／1返り値として渡す。`%rbx`, `%rbp`, `%r12`～`%r15` の保存、関数呼び出し前のスタック整列などもABIに従う。
 - シンボルの重複を防ぐため、公開関数だけを `.globl` にし、内部ラベルはローカルにする。将来、値が複数ワードになるならABIも再設計する。
-- AtCoderへの提出形式は **C++ソース1ファイル**に固定する。別ツール [`gas_to_cpp.py`](../25B31026/gas_to_cpp.py) がランタイムと生成プログラムのGASソースを受け取り、トップレベルの `asm(R"区切り(... )区切り")` に同梱した `Main.cpp` を返す。GAS自体の構文は変換しない。C++には `main` を重複定義せず、アセンブリ側の `main` をリンカに公開する。
+- AtCoderへの提出形式は **C++ソース1ファイル**に固定する。別ツール [`gas_to_cpp.py`](../25B31026/codes/gas_to_cpp.py) がランタイムと生成プログラムのGASソースを受け取り、トップレベルの `asm(R"区切り(... )区切り")` に同梱した `Main.cpp` を返す。GAS自体の構文は変換しない。C++には `main` を重複定義せず、アセンブリ側の `main` をリンカに公開する。
 - AtCoderのx64アセンブリ提出枠は **NASM** (`Main.asm`) であり、このGASソースはその枠には送らない。GCCのC++枠での実提出は、単純な問題で別途確認する。
 
 変換ツールの使用例（ランタイムを先に、生成プログラムを後に渡す）:
 
 ```sh
-python 25B31026/gas_to_cpp.py playground/runtime.s playground/generated.s -o Main.cpp
+python 25B31026/codes/gas_to_cpp.py playground/runtime.s playground/generated.s -o Main.cpp
 g++ -std=gnu++23 -O2 Main.cpp -o main
 ```
 

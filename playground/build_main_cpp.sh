@@ -24,7 +24,7 @@ gcc -std=c11 -Wall -Wextra -Werror \
 source_text=$(cat -- "$source_file")
 "$temp_dir/calc4" "$source_text" > "$temp_dir/generated.s"
 
-python3 "$repo_dir/25B31026/gas_to_cpp.py" "$temp_dir/generated.s" \
+python3 "$repo_dir/25B31026/codes/gas_to_cpp.py" "$temp_dir/generated.s" \
     --source-file "$source_file" -o "$output_cpp"
 
 echo "Created $output_cpp"

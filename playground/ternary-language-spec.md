@@ -61,7 +61,7 @@ print(answer);
 
 字句解析 → 構文解析 → 名前と型・配列サイズの検査 → 中間表現または直接コード生成 → ランタイム結合、という順を想定する。初期版のコンパイラはPython製でもよいが、生成プログラムは単独で実行できるようにする。コンパイラ本体をAtCoderへ送る必要はなく、**コンパイル済みの提出用ソース**を送る方針。
 
-開発時は生成したGASとランタイムGASを別ファイルにできる。提出時は別ツール [`gas_to_cpp.py`](../25B31026/gas_to_cpp.py) に両方を渡し、GASをトップレベル `asm` に同梱した単一の `Main.cpp` を作る。これをAtCoderのGCC C++枠へ提出する。GASの命令や `%` は変換せず、C++の生文字列で包む。AtCoderの[公式言語一覧](https://img.atcoder.jp/file/language-update/2025-10/language-list.html)ではx64アセンブリ枠はNASMなので、GASはその枠に直接提出しない。生成物のサイズ、コンパイル時間、実行時間を含め、簡単な問題で提出実験をする。
+開発時は生成したGASとランタイムGASを別ファイルにできる。提出時は別ツール [`gas_to_cpp.py`](../25B31026/codes/gas_to_cpp.py) に両方を渡し、GASをトップレベル `asm` に同梱した単一の `Main.cpp` を作る。これをAtCoderのGCC C++枠へ提出する。GASの命令や `%` は変換せず、C++の生文字列で包む。AtCoderの[公式言語一覧](https://img.atcoder.jp/file/language-update/2025-10/language-list.html)ではx64アセンブリ枠はNASMなので、GASはその枠に直接提出しない。生成物のサイズ、コンパイル時間、実行時間を含め、簡単な問題で提出実験をする。
 
 ## 実装と検証の順序
 

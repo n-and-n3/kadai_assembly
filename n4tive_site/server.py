@@ -17,7 +17,7 @@ from threading import BoundedSemaphore
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / "25B31026"))
+sys.path.insert(0, str(ROOT / "25B31026" / "codes"))
 from gas_to_cpp import package_sources  # noqa: E402
 
 MAX_REQUEST = 220_000
