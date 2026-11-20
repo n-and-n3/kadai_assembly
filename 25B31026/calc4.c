@@ -11,6 +11,7 @@ typedef enum {
     SEMICOLON,
     PAREN,
     EQUAL,
+    RELATIONAL,
     END,
 } TokenKind;
 
@@ -20,6 +21,8 @@ typedef struct {
     char* p;
     int len;
 } Token;
+
+int label_count = 0;
 
 // 動的配列の扱い面倒くさすぎ！！！！！
 static Token *variables;
@@ -84,14 +87,36 @@ Token next_token(char** p) {
         return token;
     }
 
-    if (**p == '(' || **p == ')') {
+    if (**p == '(' || **p == ')' || **p == '{' || **p == '}') {
         Token token = {.kind = PAREN, .p = *p, .len = 1};
         (*p)++;
         return token;
     }
 
     if (**p == '=') {
+        if (*(*p + 1) == '=') {
+            Token token = {.kind = RELATIONAL, .p = *p, .len = 2};
+            (*p) += 2;
+            return token;
+        }
         Token token = {.kind = EQUAL, .p = *p, .len = 1};
+        (*p)++;
+        return token;
+    }
+
+    if (**p == '!' && *(*p + 1) == '=') {
+        Token token = {.kind = RELATIONAL, .p = *p, .len = 2};
+        (*p) += 2;
+        return token;
+    }
+
+    if (**p == '<' || **p == '>') {
+        if (*(*p + 1) == '=') {
+            Token token = {.kind = RELATIONAL, .p = *p, .len = 2};
+            (*p) += 2;
+            return token;
+        }
+        Token token = {.kind = RELATIONAL, .p = *p, .len = 1};
         (*p)++;
         return token;
     }
@@ -105,6 +130,7 @@ void parse_statement(char **p);
 void parse_expression(char **p);
 void parse_term(char **p);
 void parse_factor(char **p);
+void parse_relational(char **p);
 
 
 void test_tokenize_program(char* p) {
@@ -114,15 +140,15 @@ void test_tokenize_program(char* p) {
     }
 }
 
-void parse_program(char* p) {
+void parse_program(char** p) {
     while (true) {
-        char *start = p;
-        if (next_token(&p).kind == END) {
+        char *start = *p;
+        if (next_token(p).kind == END) {
             break;
         }
-        p = start;
-        parse_statement(&p);
-        Token token = next_token(&p);
+        *p = start;
+        parse_statement(p);
+        Token token = next_token(p);
         if (token.kind != SEMICOLON) {
             fprintf(stderr, "Expected ';' after statement\n");
             exit(1);
@@ -143,7 +169,13 @@ void parse_statement(char** p) {
         } else if (token.len == 5 && strncmp(token.p, "print", 5) == 0) {
             parse_expression(p);
             printf("    popq %%rsi\n");
-            printf("    leaq .LC0(%%rip), %%rdi\n");
+            printf("    leaq .Lprint(%%rip), %%rdi\n");
+            printf("    movq $0, %%rax\n");
+            printf("    call printf\n");
+        } else if (token.len == 6 && strncmp(token.p, "printc", 6) == 0) {
+            parse_expression(p);
+            printf("    popq %%rsi\n");
+            printf("    leaq .Lprint_char(%%rip), %%rdi\n");
             printf("    movq $0, %%rax\n");
             printf("    call printf\n");
         } else if (token.len == 5 && strncmp(token.p, "input", 5) == 0) {
@@ -157,6 +189,45 @@ void parse_statement(char** p) {
             printf("    leaq %.*s(%%rip), %%rsi\n", token.len, token.p);
             printf("    movq $0, %%rax\n");
             printf("    call scanf\n");
+        } else if (token.len == 6 && strncmp(token.p, "inputc", 6) == 0) {
+            token = next_token(p);
+            if (token.kind != IDENTIFIER) {
+                fprintf(stderr, "Expected identifier after 'input'\n");
+                exit(1);
+            }
+            remember_variable(token);
+            printf("    leaq .Lscan_char(%%rip), %%rdi\n");
+            printf("    leaq %.*s(%%rip), %%rsi\n", token.len, token.p);
+            printf("    movq $0, %%rax\n");
+            printf("    call scanf\n");
+        } else if (token.len == 2 && strncmp(token.p, "if", 2) == 0) {
+            Token open_paren = next_token(p);
+            if (open_paren.kind != PAREN || open_paren.p[0] != '(') {
+                fprintf(stderr, "Expected '(' after 'if'\n");
+                exit(1);
+            }
+            parse_expression(p);
+            Token close_paren = next_token(p);
+            if (close_paren.kind != PAREN || close_paren.p[0] != ')') {
+                fprintf(stderr, "Expected ')' after expression\n");
+                exit(1);
+            }
+            Token open_brace = next_token(p);
+            if (open_brace.kind != PAREN || open_brace.p[0] != '{') {
+                fprintf(stderr, "Expected '{' after ')'\n");
+                exit(1);
+            }
+            printf("    popq %%rax\n");
+            printf("    testq %%rax, %%rax\n");
+            printf("    jz .L_iflabel_%d\n", label_count);
+            parse_program(p);
+            printf(".L_iflabel_%d:\n", label_count);
+            label_count++;
+            Token close_brace = next_token(p);
+            if (close_brace.kind != PAREN || close_brace.p[0] != '}') {
+                fprintf(stderr, "Expected '}' after if block\n");
+                exit(1);
+            }
         } else {
             Token eq_token = next_token(p);
             if (eq_token.kind != EQUAL || eq_token.p[0] != '=') {
@@ -174,6 +245,49 @@ void parse_statement(char** p) {
 }
 
 void parse_expression(char** p) {
+    parse_relational(p);
+    while (true) {
+        char* tmp = *p;
+        Token token = next_token(p);
+        if (token.kind == RELATIONAL) {
+            Token op = token;
+            parse_relational(p);
+            printf("    popq %%rdi\n");
+            printf("    popq %%rax\n");
+            if (op.len == 2 && op.p[0] == '=' && op.p[1] == '=') {
+                printf("    cmpq %%rdi, %%rax\n");
+                printf("    sete %%al\n");
+                printf("    movzbq %%al, %%rax\n");
+            } else if (op.len == 2 && op.p[0] == '!' && op.p[1] == '=') {
+                printf("    cmpq %%rdi, %%rax\n");
+                printf("    setne %%al\n");
+                printf("    movzbq %%al, %%rax\n");
+            } else if (op.len == 1 && op.p[0] == '<') {
+                printf("    cmpq %%rdi, %%rax\n");
+                printf("    setl %%al\n");
+                printf("    movzbq %%al, %%rax\n");
+            } else if (op.len == 1 && op.p[0] == '>') {
+                printf("    cmpq %%rdi, %%rax\n");
+                printf("    setg %%al\n");
+                printf("    movzbq %%al, %%rax\n");
+            } else if (op.len == 2 && op.p[0] == '<' && op.p[1] == '=') {
+                printf("    cmpq %%rdi, %%rax\n");
+                printf("    setle %%al\n");
+                printf("    movzbq %%al, %%rax\n");
+            } else if (op.len == 2 && op.p[0] == '>' && op.p[1] == '=') {
+                printf("    cmpq %%rdi, %%rax\n");
+                printf("    setge %%al\n");
+                printf("    movzbq %%al, %%rax\n");
+            }
+            printf("    pushq %%rax\n");
+        } else {
+            *p = tmp;
+            break;
+        }
+    }
+}
+
+void parse_relational(char** p) {
     parse_term(p);
     while (true) {
         char* tmp = *p;
@@ -252,10 +366,14 @@ void parse_factor(char** p) {
 
 void emit_header() {
     printf(".section .rodata\n");
-    printf(".LC0:\n");
+    printf(".Lprint:\n");
     printf("    .string \"%%ld\\n\"\n");
+    printf(".Lprint_char:\n");
+    printf("    .string \"%%c\"\n");
     printf(".Lscan:\n");
     printf("    .string \"%%ld\"\n");
+    printf(".Lscan_char:\n");
+    printf("    .string \" %%c\"\n");
     printf(".text\n");
     printf(".globl main\n");
     printf("main:\n");
@@ -290,7 +408,7 @@ int main (int argc, char *argv[])
     char *p = argv[1];
 
     emit_header();
-    parse_program(p);
+    parse_program(&p);
     emit_footer();
     return 0;
 }

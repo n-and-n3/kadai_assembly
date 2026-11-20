@@ -1,0 +1,13 @@
+input N;
+input K;
+rep(N){
+    inputc x;
+    if (x == 111){
+        if (K > 0){
+            K--;
+        } else {
+            x = 120;
+        }
+    }
+    printc x;
+}
