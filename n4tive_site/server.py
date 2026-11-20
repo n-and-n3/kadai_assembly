@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Small n4tive editor and code-test server for local use and NeoShowcase."""
+"""n4tive editor: compile locally, run generated C++ on Wandbox."""
 
 import json
 import os
 import resource
-import shutil
 import signal
 import subprocess
 import sys
@@ -24,8 +23,9 @@ MAX_REQUEST = 220_000
 MAX_SOURCE = 100_000  # calc4 receives the source as one argv argument.
 MAX_STDIN = 64_000
 MAX_OUTPUT = 64_000
-RUN_TIMEOUT = 3
 SLOTS = BoundedSemaphore(2)
+WANDBOX_URL = "https://wandbox.org/api/compile.json"
+WANDBOX_COMPILER = "gcc-13.2.0"
 
 
 @dataclass
@@ -41,7 +41,7 @@ class Result:
 def limited(memory_bytes: int, cpu_seconds: int) -> None:
     resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
     resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (1_000_000, 1_000_000))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (3_000_000, 3_000_000))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
 
@@ -54,7 +54,7 @@ def execute(args: list[str], work: Path, phase: str, *, stdin: str = "",
     with output_path.open("wb") as output, error_path.open("wb") as error:
         process = subprocess.Popen(
             args, stdin=subprocess.PIPE, stdout=output, stderr=error,
-            start_new_session=True,
+            cwd=work, start_new_session=True,
             preexec_fn=lambda: limited(memory_mb * 1024 * 1024, max(timeout, 1) + 1),
         )
         timed_out = False
@@ -75,41 +75,9 @@ def execute(args: list[str], work: Path, phase: str, *, stdin: str = "",
     )
 
 
-def sandbox_command(program: Path, *args: str) -> list[str]:
-    command = [
-        "bwrap", "--unshare-user", "--unshare-pid", "--unshare-net",
-        "--unshare-ipc", "--unshare-uts", "--die-with-parent", "--new-session",
-        "--clearenv", "--setenv", "PATH", "/usr/bin:/bin",
-        "--ro-bind", "/usr", "/usr",
-    ]
-    for directory in ("/lib", "/lib64"):
-        if Path(directory).exists():
-            command += ["--ro-bind", directory, directory]
-    command += [
-        "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
-        "--ro-bind", str(program), "/program", "--chdir", "/",
-        "/program", *args,
-    ]
-    return command
-
-
-def sandbox_works(work: Path) -> tuple[bool, str]:
-    if not shutil.which("bwrap"):
-        return False, "bubblewrap (bwrap) がインストールされていません。"
-    try:
-        result = execute(sandbox_command(Path("/usr/bin/true")), work, "probe", timeout=2)
-        if result.code == 0:
-            return True, ""
-        return False, result.stderr.strip() or f"bwrap が終了コード {result.code} で失敗しました。"
-    except (OSError, subprocess.SubprocessError) as error:
-        return False, str(error)
-
-
 class Application:
-    def __init__(self, compiler: Path, sandbox_ready: bool, sandbox_error: str):
+    def __init__(self, compiler: Path):
         self.compiler = compiler
-        self.sandbox_ready = sandbox_ready
-        self.sandbox_error = sandbox_error
 
     def process(self, request: dict, run: bool) -> dict:
         source = request.get("source")
@@ -121,14 +89,9 @@ class Application:
             return {"status": "error", "message": "標準入力が長すぎます。"}
         if not isinstance(expected, str) or len(expected.encode()) > MAX_STDIN:
             return {"status": "error", "message": "期待する出力が長すぎます。"}
-        if not self.sandbox_ready:
-            return {"status": "error", "message":
-                    "実行環境の隔離が利用できません。NeoShowcase の実行権限を確認してください。"
-                    f" 詳細: {self.sandbox_error}"}
-
         with tempfile.TemporaryDirectory(prefix="n4tive-") as temp:
             work = Path(temp)
-            generated = execute(sandbox_command(self.compiler, source), work, "n4tive",
+            generated = execute([str(self.compiler), source], work, "n4tive",
                                 timeout=5, stdout_limit=900_000)
             if generated.timed_out:
                 return {"status": "CE", "message": "n4tive コンパイラが時間切れになりました。"}
@@ -143,30 +106,52 @@ class Application:
             except ValueError as error:
                 return {"status": "CE", "message": str(error)}
 
-            cpp_path = work / "Main.cpp"
-            executable = work / "main"
-            cpp_path.write_text(cpp, encoding="utf-8")
-            built = execute(["g++", "-std=gnu++23", "-O2", str(cpp_path), "-o", str(executable)],
-                            work, "cpp", timeout=20, memory_mb=1536)
-            if built.timed_out:
-                return {"status": "CE", "message": "C++ のビルドが時間切れになりました。"}
-            if built.code != 0:
-                return {"status": "CE", "message": built.stderr or "生成した C++ をビルドできませんでした。"}
             if not run:
                 return {"status": "ok", "cpp": cpp, "assembly": generated.stdout}
 
-            executed = execute(sandbox_command(executable), work, "run", stdin=stdin,
-                               timeout=RUN_TIMEOUT, memory_mb=256)
+            payload = json.dumps({
+                "compiler": WANDBOX_COMPILER,
+                "compiler-option-raw": "-std=gnu++23\n-O2",
+                "code": cpp,
+                "stdin": stdin,
+            }, ensure_ascii=False)
+            remote = execute([
+                "curl", "--max-time", "25", "--connect-timeout", "5",
+                "--fail-with-body", "--silent", "--show-error",
+                "--header", "Content-Type: application/json",
+                "--data-binary", "@-", WANDBOX_URL,
+            ], work, "wandbox", stdin=payload, timeout=28, stdout_limit=2_000_000)
+            if remote.timed_out or remote.code != 0 or remote.stdout_truncated:
+                return {"status": "error", "message":
+                        "外部の C++ 実行サービスに接続できませんでした。少し待って再試行してください。"
+                        + (f" {remote.stderr.strip()}" if remote.stderr else ""), "cpp": cpp}
+            try:
+                result = json.loads(remote.stdout)
+                if not isinstance(result, dict) or "status" not in result:
+                    raise ValueError("missing status")
+            except ValueError:
+                return {"status": "error", "message": "C++ 実行サービスからの応答を読めませんでした。", "cpp": cpp}
+            output = result.get("program_output", "")
+            program_error = result.get("program_error", "")
+            compiler_error = result.get("compiler_error", "")
+            if not all(isinstance(value, str) for value in (output, program_error, compiler_error)):
+                return {"status": "error", "message": "C++ 実行サービスの応答形式が不正です。", "cpp": cpp}
+            compilation_failed = result["status"] != "0" and bool(compiler_error)
+            status = ("CE" if compilation_failed else "RE" if result["status"] != "0" else
+                      "OLE" if len(output.encode()) > MAX_OUTPUT else "OK")
+            diagnostic = compiler_error if compilation_failed else program_error
+            if status == "RE" and not diagnostic:
+                diagnostic = f"プログラムが終了コード {result['status']} で終了しました。"
             response = {
-                "status": "TLE" if executed.timed_out else "OLE" if executed.stdout_truncated else "RE" if executed.code != 0 else "OK",
-                "stdout": executed.stdout,
-                "stderr": executed.stderr,
-                "exitCode": executed.code,
-                "timeMs": executed.elapsed_ms,
+                "status": status,
+                "stdout": output[:MAX_OUTPUT],
+                "stderr": diagnostic[:MAX_OUTPUT],
+                "exitCode": result["status"],
+                "timeMs": remote.elapsed_ms,
                 "cpp": cpp,
             }
             if expected.strip() and response["status"] == "OK":
-                response["status"] = "AC" if executed.stdout.split() == expected.split() else "WA"
+                response["status"] = "AC" if output.split() == expected.split() else "WA"
             return response
 
 
@@ -194,9 +179,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/healthz":
-            self.send_json(200 if self.server.app.sandbox_ready else 503,
-                           {"status": "ok" if self.server.app.sandbox_ready else "sandbox unavailable",
-                            "detail": self.server.app.sandbox_error})
+            self.send_json(200, {"status": "ok", "runner": "wandbox"})
             return
         files = {"/": ("index.html", "text/html; charset=utf-8"),
                  "/guide": ("guide.html", "text/html; charset=utf-8"),
@@ -252,12 +235,9 @@ def main() -> None:
                             work, "build-compiler", timeout=20, memory_mb=1024)
             if built.code != 0 or built.timed_out:
                 raise SystemExit(built.stderr or "n4tive コンパイラをビルドできませんでした。")
-        ready, sandbox_error = sandbox_works(work)
         server = Server((host, port), Handler)
-        server.app = Application(compiler, ready, sandbox_error)
-        print(f"n4tive: http://{host}:{port}/ (sandbox: {'ready' if ready else 'unavailable'})", flush=True)
-        if not ready:
-            print(f"n4tive: sandbox probe failed: {sandbox_error}", file=sys.stderr, flush=True)
+        server.app = Application(compiler)
+        print(f"n4tive: http://{host}:{port}/ (C++ runner: Wandbox)", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:

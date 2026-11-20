@@ -16,7 +16,7 @@
 
   <main class="page">
     <div class="page-heading">
-      <div><p class="eyebrow">PLAYGROUND</p><h1>n4tive コードテスト</h1><p class="intro">n4tive を手元のコンパイラで GAS に変換し、GCC C++23 に埋め込んで実行します。</p></div>
+      <div><p class="eyebrow">PLAYGROUND</p><h1>n4tive コードテスト</h1><p class="intro">n4tive を GAS に変換し、C++ に埋め込みます。コードテストでは生成した C++ を Wandbox に送って実行します。</p></div>
       <div class="heading-actions"><button id="load-example" type="button" class="button subtle">例を読み込む</button><button id="download-n4" type="button" class="button subtle">.n4 を保存</button></div>
     </div>
 
@@ -54,7 +54,7 @@
       <p class="generated-note">生成した C++ は GCC C++23 として AtCoder に貼り付けられます。元の .n4 ソースは先頭のコメントに残ります。</p>
       <textarea id="cpp" readonly spellcheck="false" aria-label="生成した提出用 C++" placeholder="「C++ を生成」または「コードテスト」で表示されます。"></textarea>
     </section>
-    <footer>n4tive · コンパイラと実行環境はこのサーバー上で動きます。</footer>
+    <footer>n4tive · C++ のコンパイルと実行には外部サービス Wandbox を使います。</footer>
   </main>
 </body>
 </html>

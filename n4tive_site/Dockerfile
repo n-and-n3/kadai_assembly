@@ -7,7 +7,7 @@ RUN mkdir -p /app/bin && gcc -std=c11 -Wall -Wextra -Werror \
     25B31026/calc4.c -o /app/bin/calc4
 
 FROM python:3.12-slim-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends g++ bubblewrap \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 n4tive && useradd --uid 10001 --gid 10001 --no-create-home n4tive
 WORKDIR /app
