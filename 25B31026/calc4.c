@@ -9,6 +9,7 @@ typedef enum {
     OPERATOR,
     SEMICOLON,
     PAREN,
+    EQUAL,
     END,
 } TokenKind;
 
@@ -18,6 +19,32 @@ typedef struct {
     char* p;
     int len;
 } Token;
+
+// 変数名は入力文字列中の位置と長さで保持する。重複は登録しない。
+static Token *variables;
+static size_t variable_count;
+static size_t variable_capacity;
+
+static void remember_variable(Token token) {
+    for (size_t i = 0; i < variable_count; i++) {
+        if (variables[i].len == token.len &&
+            strncmp(variables[i].p, token.p, token.len) == 0) {
+            return;
+        }
+    }
+
+    if (variable_count == variable_capacity) {
+        size_t new_capacity = variable_capacity == 0 ? 8 : variable_capacity * 2;
+        Token *new_variables = realloc(variables, new_capacity * sizeof *variables);
+        if (new_variables == NULL) {
+            perror("realloc");
+            exit(1);
+        }
+        variables = new_variables;
+        variable_capacity = new_capacity;
+    }
+    variables[variable_count++] = token;
+}
 
 Token next_token(char** p) {
     while (**p == ' ' || **p == '\t') {
@@ -62,6 +89,12 @@ Token next_token(char** p) {
         return token;
     }
 
+    if (**p == '=') {
+        Token token = {.kind = EQUAL, .p = *p, .len = 1};
+        (*p)++;
+        return token;
+    }
+
     fprintf(stderr, "Unexpected character: %c\n", **p);
     exit(1);
 
@@ -94,21 +127,28 @@ void parse_program(char* p) {
 void parse_statement(char** p) {
     Token token = next_token(p);
     if (token.kind == IDENTIFIER) {
-        if (token.len == 3 && strncmp(token.p, "let", 3) == 0) {
+        if (token.len == 3 && strncmp(token.p, "int", 3) == 0) {
             Token var_token = next_token(p);
             if (var_token.kind != IDENTIFIER) {
-                fprintf(stderr, "Expected identifier after 'let'\n");
+                fprintf(stderr, "Expected identifier after 'int'\n");
                 exit(1);
             }
+            remember_variable(var_token);
         } else if (token.len == 5 && strncmp(token.p, "print", 5) == 0) {
             parse_expression(p);
             printf("    popq %%rsi\n");
             printf("    leaq .LC0(%%rip), %%rdi\n");
-            printf("    movl $0, %%eax\n");
+            printf("    movq $0, %%rax\n");
             printf("    call printf\n");
         } else {
-            fprintf(stderr, "Unexpected identifier: %.*s\n", token.len, token.p);
-            exit(1);
+            Token eq_token = next_token(p);
+            if (eq_token.kind != EQUAL || eq_token.p[0] != '=') {
+                fprintf(stderr, "Expected '=' after identifier\n");
+                exit(1);
+            }
+            parse_expression(p);
+            printf("    popq %%rax\n");
+            printf("    movq %%rax, %.*s(%%rip)\n", token.len, token.p);
         }
     } else {
         fprintf(stderr, "Unexpected token in statement\n");
@@ -123,15 +163,15 @@ void parse_expression(char** p) {
         Token token = next_token(p);
         if (token.kind == OPERATOR && (token.p[0] == '+' || token.p[0] == '-')) {
             char op = token.p[0];
-            printf("    popq %%edi\n");
-            printf("    popq %%eax\n");
+            parse_term(p);
+            printf("    popq %%rdi\n");
+            printf("    popq %%rax\n");
             if (op == '+') {
-                printf("    addl %%edi, %%eax\n");
+                printf("    addq %%rdi, %%rax\n");
             } else {
-                printf("    subl %%edi, %%eax\n");
+                printf("    subq %%rdi, %%rax\n");
             }
             printf("    pushq %%rax\n");
-            parse_term(p);
         } else {
             *p = tmp;
             break;
@@ -146,20 +186,20 @@ void parse_term(char** p) {
         Token token = next_token(p);
         if (token.kind == OPERATOR && (token.p[0] == '*' || token.p[0] == '/' || token.p[0] == '%')) {
             char op = token.p[0];
-            printf("    popq %%edi\n");
-            printf("    popq %%eax\n");
+            parse_factor(p);
+            printf("    popq %%rdi\n");
+            printf("    popq %%rax\n");
             if (op == '*') {
-                printf("    imull %%edi, %%eax\n");
+                printf("    imulq %%rdi, %%rax\n");
             } else if (op == '/') {
-                printf("    cltd\n");
-                printf("    idivl %%edi\n");
+                printf("    cqto\n");
+                printf("    idivq %%rdi\n");
             } else {
-                printf("    cltd\n");
-                printf("    idivl %%edi\n");
-                printf("    movl %%edx, %%eax\n");
+                printf("    cqto\n");
+                printf("    idivq %%rdi\n");
+                printf("    movq %%rdx, %%rax\n");
             }
             printf("    pushq %%rax\n");
-            parse_factor(p);
         } else {
             *p = tmp;
             break;
@@ -170,10 +210,10 @@ void parse_term(char** p) {
 void parse_factor(char** p) {
     Token token = next_token(p);
     if (token.kind == NUMBER) {
-        printf("    movl $%.*s, %%eax\n", token.len, token.p);
+        printf("    movabsq $%.*s, %%rax\n", token.len, token.p);
         printf("    pushq %%rax\n");
     } else if (token.kind == IDENTIFIER) {
-        printf("    movl %.*s(%%rip), %%eax\n", token.len, token.p);
+        printf("    movq %.*s(%%rip), %%rax\n", token.len, token.p);
         printf("    pushq %%rax\n");
     } else if (token.kind == PAREN && token.p[0] == '(') {
         parse_expression(p);
@@ -183,10 +223,10 @@ void parse_factor(char** p) {
             exit(1);
         }
     } else if (token.kind == OPERATOR && token.p[0] == '-') {
-        printf("    popq %%rax\n");
-        printf("    negl %%eax\n");
-        printf("    pushq %%rax\n");
         parse_factor(p);
+        printf("    popq %%rax\n");
+        printf("    negq %%rax\n");
+        printf("    pushq %%rax\n");
     } else {
         fprintf(stderr, "Unexpected token in factor\n");
         exit(1);
@@ -196,7 +236,7 @@ void parse_factor(char** p) {
 void emit_header() {
     printf(".section .rodata\n");
     printf(".LC0:\n");
-    printf("    .string \"%%d\\n\"\n");
+    printf("    .string \"%%ld\\n\"\n");
     printf(".text\n");
     printf(".globl main\n");
     printf("main:\n");
@@ -205,10 +245,18 @@ void emit_header() {
 }
 
 void emit_footer() {
-    printf("    movl $0, %%eax\n");
+    printf("    movq $0, %%rax\n");
     printf("    popq %%rbp\n");
     printf("    ret\n");
     printf("\n");
+    if (variable_count != 0) {
+        printf(".section .bss\n");
+        for (size_t i = 0; i < variable_count; i++) {
+            printf("    .balign 8\n");
+            printf("%.*s:\n", variables[i].len, variables[i].p);
+            printf("    .zero 8\n");
+        }
+    }
 }
 
 char** stack;
