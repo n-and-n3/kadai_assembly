@@ -1,15 +1,18 @@
+
 .section .rodata
 .LC0:
     .string "%ld\n"
+.Lscan:
+    .string "%ld"
 .text
 .globl main
 main:
     pushq %rbp
     movq %rsp, %rbp
-    movabsq $1, %rax
-    pushq %rax
-    popq %rax
-    movq %rax, x(%rip)
+    leaq .Lscan(%rip), %rdi
+    leaq x(%rip), %rsi
+    movq $0, %rax
+    call scanf
     movq x(%rip), %rax
     pushq %rax
     movq x(%rip), %rax

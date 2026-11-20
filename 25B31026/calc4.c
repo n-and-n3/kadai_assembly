@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 typedef enum {
     IDENTIFIER,
@@ -20,7 +21,7 @@ typedef struct {
     int len;
 } Token;
 
-// 変数名は入力文字列中の位置と長さで保持する。重複は登録しない。
+// 動的配列の扱い面倒くさすぎ！！！！！
 static Token *variables;
 static size_t variable_count;
 static size_t variable_capacity;
@@ -47,7 +48,7 @@ static void remember_variable(Token token) {
 }
 
 Token next_token(char** p) {
-    while (**p == ' ' || **p == '\t') {
+    while (isspace((unsigned char)**p)) {
         (*p)++;
     }
 
@@ -114,7 +115,12 @@ void test_tokenize_program(char* p) {
 }
 
 void parse_program(char* p) {
-    while (*p) {
+    while (true) {
+        char *start = p;
+        if (next_token(&p).kind == END) {
+            break;
+        }
+        p = start;
         parse_statement(&p);
         Token token = next_token(&p);
         if (token.kind != SEMICOLON) {
@@ -140,6 +146,17 @@ void parse_statement(char** p) {
             printf("    leaq .LC0(%%rip), %%rdi\n");
             printf("    movq $0, %%rax\n");
             printf("    call printf\n");
+        } else if (token.len == 5 && strncmp(token.p, "input", 5) == 0) {
+            token = next_token(p);
+            if (token.kind != IDENTIFIER) {
+                fprintf(stderr, "Expected identifier after 'input'\n");
+                exit(1);
+            }
+            remember_variable(token);
+            printf("    leaq .Lscan(%%rip), %%rdi\n");
+            printf("    leaq %.*s(%%rip), %%rsi\n", token.len, token.p);
+            printf("    movq $0, %%rax\n");
+            printf("    call scanf\n");
         } else {
             Token eq_token = next_token(p);
             if (eq_token.kind != EQUAL || eq_token.p[0] != '=') {
@@ -237,6 +254,8 @@ void emit_header() {
     printf(".section .rodata\n");
     printf(".LC0:\n");
     printf("    .string \"%%ld\\n\"\n");
+    printf(".Lscan:\n");
+    printf("    .string \"%%ld\"\n");
     printf(".text\n");
     printf(".globl main\n");
     printf("main:\n");
