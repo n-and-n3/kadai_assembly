@@ -1,0 +1,53 @@
+.brand-link{text-decoration:none;color:inherit}
+.guide-nav{text-decoration:none;font-weight:700;transition:border-color .15s,color .15s}
+.guide-nav:hover,.guide-nav:focus-visible{border-color:#c7ef59;color:#d9fa7a}
+.current-page{color:#d9fa7a;border-color:#566937}
+.guide-page{max-width:1380px;margin:0 auto;padding:0 clamp(18px,4vw,58px)}
+.guide-hero{padding:62px 0 58px;border-bottom:1px solid #2b3647}
+.guide-hero h1{font-size:clamp(34px,4.2vw,58px);letter-spacing:-2.2px;line-height:1.16;margin:0 0 18px}
+.guide-hero>p:not(.eyebrow){font-size:15px;line-height:1.9;color:#a7b6c9;max-width:720px;margin:0}
+.hero-action{display:inline-flex;align-items:center;gap:24px;margin-top:27px;text-decoration:none}
+.guide-layout{display:grid;grid-template-columns:225px minmax(0,1fr);gap:clamp(30px,5vw,80px);align-items:start}
+.guide-toc{position:sticky;top:18px;padding:36px 0;display:flex;flex-direction:column;gap:2px}
+.guide-toc p{font-size:11px;letter-spacing:1.7px;font-weight:800;color:#7789a1;margin:0 0 13px;padding-left:12px}
+.guide-toc a{color:#a6b4c7;text-decoration:none;font-size:13px;padding:11px 12px;border-radius:8px;display:flex;gap:14px;align-items:center;line-height:1.45}
+.guide-toc a span{font:11px/1.4 Consolas,monospace;color:#76889f}
+.guide-toc a:hover,.guide-toc a:focus-visible{background:#1d2939;color:#e6f6cb}
+.guide-content{min-width:0;padding-bottom:38px}
+.guide-section{padding:48px 0 54px;border-bottom:1px solid #293547;scroll-margin-top:18px}
+.guide-section:last-child{border-bottom:0}
+.section-kicker{font:700 11px/1.4 Consolas,monospace;letter-spacing:1.6px;color:#bdea62;margin-bottom:14px}
+.guide-section h2{font-size:clamp(23px,2.4vw,31px);letter-spacing:-.7px;margin:0 0 18px}
+.guide-section p{max-width:790px;color:#b1bfd0;font-size:14px;line-height:1.9;margin:0 0 19px}
+.guide-section p:last-child{margin-bottom:0}
+.guide-section p strong{color:#ebf4e0}
+.guide-section p code,.io-table code,.example-result code{font:13px/1.5 Consolas,"Cascadia Code",monospace;background:#243044;color:#e4f4c6;border-radius:4px;padding:2px 5px}
+.example-card{background:#131d2b;border:1px solid #344158;border-radius:13px;overflow:hidden;margin:25px 0 20px}
+.example-card.compact{max-width:790px}
+.example-head{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 17px;background:#1b2737;border-bottom:1px solid #344158;color:#aebed1;font:12px/1.5 Consolas,monospace}
+.example-head>div{display:flex;align-items:center;gap:12px;min-width:0}
+.example-head strong{color:#e7eef5;font:700 13px/1.4 Inter,"Segoe UI",sans-serif}
+.example-number{width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;border-radius:6px;color:#1f2d0b;background:#cff468;font-weight:900}
+.try-example{border:0;background:transparent;color:#d1f17c;font:700 12px/1.4 Inter,"Segoe UI",sans-serif;padding:5px 0;white-space:nowrap}
+.try-example:hover,.try-example:focus-visible{text-decoration:underline;color:#f0ffb7}
+.example-card pre{overflow:auto;margin:0;padding:19px 21px;color:#dce9f6;font:13px/1.65 "Cascadia Code",Consolas,monospace;tab-size:4;white-space:pre}
+.example-card pre code{font:inherit}
+.guide-section .example-description{padding:16px 19px 0;margin:0;color:#aebdd0;font-size:13px}
+.guide-section .example-result{padding:11px 19px 16px;margin:0;border-top:1px solid #2e3c50;color:#b5c4d5;font-size:12px}
+.operator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-width:790px;gap:12px;margin:22px 0}
+.operator-grid>div{display:flex;flex-direction:column;gap:10px;border:1px solid #344158;border-radius:10px;padding:18px;background:#172231}
+.operator-grid strong{font-size:12px;color:#9fb0c5}
+.operator-grid code{font:15px/1.5 Consolas,monospace;color:#dcf5a5;white-space:pre-wrap}
+.io-table-wrap{max-width:790px;overflow-x:auto;border:1px solid #344158;border-radius:10px;margin:23px 0}
+.io-table{border-collapse:collapse;width:100%;min-width:530px;font-size:13px}
+.io-table th,.io-table td{padding:15px 18px;border-bottom:1px solid #2d3a4e;text-align:left}
+.io-table tr:last-child td{border-bottom:0}
+.io-table th{background:#1b2737;color:#dce8f4;font-weight:700}
+.io-table td{color:#acbbce}
+.io-table td:first-child{width:170px}
+.examples-section>.example-card{margin-top:30px}
+.guide-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 0 42px;color:#74869d;font-size:12px}
+.guide-footer a{color:#c8eb7b;text-decoration:none;font-weight:700}
+.guide-footer a:hover{text-decoration:underline}
+@media(max-width:850px){.guide-layout{grid-template-columns:1fr;gap:0}.guide-toc{position:static;display:flex;flex-direction:row;flex-wrap:wrap;gap:4px;padding:22px 0 0;border-bottom:1px solid #2b3647}.guide-toc p{width:100%;margin-bottom:4px}.guide-toc a{font-size:12px;padding:8px 10px}.guide-section{padding:42px 0}}
+@media(max-width:600px){.guide-hero{padding:40px 0 37px}.guide-hero h1{letter-spacing:-1px}.guide-hero>p:not(.eyebrow){font-size:14px}.guide-toc a span{display:none}.example-head{align-items:flex-start}.example-head>div{align-items:flex-start}.try-example{font-size:11px}.example-card pre{font-size:12px;padding:15px}.operator-grid{grid-template-columns:1fr}.guide-footer{flex-direction:column;align-items:flex-start}}

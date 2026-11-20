@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101723">
+  <title>使い方 — n4tive</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/guide.css">
+  <script src="/guide.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand brand-link" href="/"><span class="brand-mark">n4</span><span><strong>n4tive</strong><small>language guide</small></span></a>
+    <nav class="topbar-right" aria-label="サイト内ナビゲーション"><a class="file-pill guide-nav" href="/">コードテストへ</a><span class="file-pill current-page" aria-current="page">使い方</span></nav>
+  </header>
+
+  <main class="guide-page">
+    <div class="guide-hero">
+      <p class="eyebrow">LANGUAGE GUIDE</p>
+      <h1>n4tive の書き方</h1>
+      <p>C++ の基本を知っている人に向けて、n4tive 固有の構文を説明します。最後に作者が AtCoder 用に書いた3本のコードを、そのまま試せます。</p>
+      <a class="button primary hero-action" href="/">コードテストを開く <span aria-hidden="true">↗</span></a>
+    </div>
+
+    <div class="guide-layout">
+      <nav class="guide-toc" aria-label="このページの目次">
+        <p>CONTENTS</p>
+        <a href="#start"><span>01</span> 最初のプログラム</a>
+        <a href="#variables"><span>02</span> 変数</a>
+        <a href="#arithmetic"><span>03</span> 四則演算と比較</a>
+        <a href="#control"><span>04</span> for / if / break</a>
+        <a href="#arrays"><span>05</span> 配列</a>
+        <a href="#io"><span>06</span> 入出力</a>
+        <a href="#examples"><span>07</span> 実際の提出コード</a>
+      </nav>
+
+      <div class="guide-content">
+        <section id="start" class="guide-section">
+          <div class="section-kicker">01 / GET STARTED</div>
+          <h2>最初のプログラム</h2>
+          <p>プログラム全体を <code>main(){ ... }</code> で囲みます。通常の文には <code>;</code> が必要です。<code>if</code> と <code>for</code> のブロックの後には付けません。</p>
+          <div class="example-card compact"><div class="example-head"><span>main.n4</span><button type="button" class="try-example" data-stdin="5&#10;" data-expected="15&#10;">エディタで試す ↗</button></div><pre><code>main(){
+    input n;
+    print n * (n + 1) / 2;
+}</code></pre></div>
+          <p>標準入力に <code>5</code> を渡すと <code>15</code> と出力します。C++ の <code>int main()</code>、<code>cin</code>、<code>cout</code> に相当する最小例です。現在、<code>//</code> や <code>/* */</code> のコメントは使えません。</p>
+        </section>
+
+        <section id="variables" class="guide-section">
+          <div class="section-kicker">02 / DATA</div>
+          <h2>変数</h2>
+          <p><code>int x;</code> で整数変数を宣言し、<code>x = 1;</code> で代入します。整数は64ビットです。ブロックごとのローカルスコープはなく、<code>if</code> や <code>for</code> の中で使った変数もプログラム全体で共有されます。</p>
+          <div class="example-card compact"><div class="example-head"><span>変数と代入</span></div><pre><code>main(){
+    int x;
+    int y;
+    x = 1;
+    y = x * (x + 1) / 2;
+    print y;
+}</code></pre></div>
+          <p><code>input x;</code> で初めて現れる名前も変数として確保されます。読みやすさのため、入力以外の変数は <code>int</code> で宣言してください。変数名は英字のみで、数字や <code>_</code> は名前に使えません。</p>
+        </section>
+
+        <section id="arithmetic" class="guide-section">
+          <div class="section-kicker">03 / EXPRESSIONS</div>
+          <h2>四則演算と比較</h2>
+          <p><code>+</code>、<code>-</code>、<code>*</code>、<code>/</code>、<code>%</code> と括弧が使えます。<code>/</code> は整数除算です。優先順位は C++ と同じく、単項 <code>-</code>、乗除算・剰余、加減算、比較の順です。</p>
+          <div class="operator-grid" aria-label="使える演算子"><div><strong>算術</strong><code>+  -  *  /  %</code></div><div><strong>比較</strong><code>==  !=  &lt;  &gt;  &lt;=  &gt;=</code></div></div>
+          <p>比較式は真なら <code>1</code>、偽なら <code>0</code> です。例えば <code>x = (a &lt; b);</code> と書けます。<code>&amp;&amp;</code>、<code>||</code>、<code>++</code>、<code>--</code> は使えないため、必要な条件は <code>if</code> を入れ子にし、更新は <code>x = x + 1;</code> と書きます。</p>
+        </section>
+
+        <section id="control" class="guide-section">
+          <div class="section-kicker">04 / CONTROL FLOW</div>
+          <h2>for / if / break</h2>
+          <p><code>if (条件){...} else {...}</code> は C++ とほぼ同じで、条件が <code>0</code> なら偽です。<code>for(N){...}</code> は C++ の三項 <code>for</code> ではなく、<strong>N回繰り返す</strong>構文です。<code>N</code> は開始時に一度だけ評価され、ループのカウンタはコードから参照できません。</p>
+          <div class="example-card compact"><div class="example-head"><span>回数指定ループと早期終了</span></div><pre><code>main(){
+    input N;
+    int x;
+    for(N){
+        if (x == 3){
+            break;
+        }
+        x = x + 1;
+    }
+    print x;
+}</code></pre></div>
+          <p><code>break;</code> は最も内側の <code>for</code> だけを抜けます。<code>while</code> はありません。<code>for</code> の回数を十分大きくして条件成立時に <code>break</code> する形で代用できますが、回数の上限までに止まるよう設計してください。</p>
+        </section>
+
+        <section id="arrays" class="guide-section">
+          <div class="section-kicker">05 / COLLECTIONS</div>
+          <h2>配列</h2>
+          <p><code>list A[100];</code> は64ビット整数100個分の配列を確保します。サイズには正の整数リテラルを書きます。添字は C++ と同じ0始まりで、<code>A[i]</code> の読み書きができます。</p>
+          <div class="example-card compact"><div class="example-head"><span>配列への保存と参照</span></div><pre><code>main(){
+    list A[100];
+    A[0] = 5;
+    A[1] = 7;
+    print A[0] + A[1];
+}</code></pre></div>
+          <p>配列の長さは実行中に変更できません。<strong>添字の範囲チェックはありません。</strong> 例えば <code>list A[100];</code> なら <code>0</code> から <code>99</code> までを使ってください。</p>
+        </section>
+
+        <section id="io" class="guide-section">
+          <div class="section-kicker">06 / INPUT &amp; OUTPUT</div>
+          <h2>入出力</h2>
+          <div class="io-table-wrap"><table class="io-table"><thead><tr><th>n4tive</th><th>動作</th></tr></thead><tbody><tr><td><code>input x;</code></td><td>標準入力から整数を1個読む</td></tr><tr><td><code>print x;</code></td><td>整数を出力し、改行する</td></tr><tr><td><code>inputc x;</code></td><td>空白を読み飛ばし、次の1文字のコードを整数変数へ読む</td></tr><tr><td><code>printc x;</code></td><td>整数値を文字として1文字出力する（改行なし）</td></tr></tbody></table></div>
+          <p>文字リテラルはないので、文字を比較・代入するときは文字コードを使います。作者の B のコードは <code>111</code> を <code>o</code>、<code>120</code> を <code>x</code> として扱います。<code>inputc</code> は空白・改行を飛ばすので、空白文字そのものは読み取れません。</p>
+        </section>
+
+        <section id="examples" class="guide-section examples-section">
+          <div class="section-kicker">07 / REAL PROGRAMS</div>
+          <h2>作者が書いた3つのプログラム</h2>
+          <p>レポートに載せた AtCoder 用のコードです。各「エディタで試す」を押すと、ソース・入力・期待出力がコードテスト画面に入ります。</p>
+
+          <article class="example-card" id="example-a"><div class="example-head"><div><span class="example-number">A</span><strong>配列へ保存して、指定位置を合計</strong></div><button type="button" class="try-example" data-stdin="3 2&#10;5 7 9&#10;1 3&#10;" data-expected="14&#10;">エディタで試す ↗</button></div><p class="example-description"><code>N</code> 個の値を <code>A[0]</code> から順に保存します。後半の <code>for(M)</code> では、1始まりの入力 <code>ind</code> を <code>A[ind-1]</code> に直して合計します。</p><pre><code>main(){
+    input N;
+    input M;
+    list A[100];
+    int c;
+    int x;
+    x = 0;
+    for(N){
+        input a;
+        A[x] = a;
+        x = x + 1;
+    }
+    int ans;
+    for(M){
+        input ind;
+        ans = ans + A[ind-1];
+    }
+    print ans;
+}</code></pre><p class="example-result">入力 <code>3 2 / 5 7 9 / 1 3</code> → 出力 <code>14</code></p></article>
+
+          <article class="example-card" id="example-b"><div class="example-head"><div><span class="example-number">B</span><strong>1文字ずつ読み、文字を置換</strong></div><button type="button" class="try-example" data-stdin="4 1&#10;ooxo&#10;" data-expected="oxxx">エディタで試す ↗</button></div><p class="example-description"><code>inputc</code> で読み取った <code>o</code>（111）を、残り回数 <code>K</code> がないとき <code>x</code>（120）へ変えます。<code>printc</code> を繰り返して文字列を作る例です。</p><pre><code>main(){
+    input N;
+    input K;
+    for(N){
+        inputc x;
+        if (x == 111){
+            if (K &gt; 0){
+                K = K - 1;
+            } else {
+                x = 120;
+            }
+        }
+        printc x;
+    }
+}</code></pre><p class="example-result">入力 <code>4 1 / ooxo</code> → 出力 <code>oxxx</code></p></article>
+
+          <article class="example-card" id="example-c"><div class="example-head"><div><span class="example-number">C</span><strong>存在表と break で探索</strong></div><button type="button" class="try-example" data-stdin="4 5&#10;0 1 3 4&#10;" data-expected="2&#10;">エディタで試す ↗</button></div><p class="example-description"><code>arr[v] = 1</code> を「値 <code>v</code> がある」の印にします。<code>x = 0</code> から順に調べ、最初の未出現値で <code>break</code> します。<code>for(K)</code> は探索回数の上限です。</p><pre><code>main(){
+    input N;
+    input K;
+    list arr[300001];
+    
+    for(N){
+        input tmp;
+        if (tmp &lt;= 300000){
+            arr[tmp] = 1;
+        }
+    }
+    
+    int x;
+    for(K){
+        if(arr[x] == 0){
+            break;
+        }
+        x = x + 1;
+    }
+    
+    print x;
+}</code></pre><p class="example-result">入力 <code>4 5 / 0 1 3 4</code> → 出力 <code>2</code></p></article>
+        </section>
+      </div>
+    </div>
+    <footer class="guide-footer"><a href="/">コードテストに戻る →</a><span>n4tive · 言語ガイド</span></footer>
+  </main>
+</body>
+</html>

@@ -193,8 +193,11 @@ class Handler(BaseHTTPRequestHandler):
                            {"status": "ok" if self.server.app.sandbox_ready else "sandbox unavailable"})
             return
         files = {"/": ("index.html", "text/html; charset=utf-8"),
+                 "/guide": ("guide.html", "text/html; charset=utf-8"),
                  "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-                 "/style.css": ("style.css", "text/css; charset=utf-8")}
+                 "/guide.js": ("guide.js", "text/javascript; charset=utf-8"),
+                 "/style.css": ("style.css", "text/css; charset=utf-8"),
+                 "/guide.css": ("guide.css", "text/css; charset=utf-8")}
         if self.path not in files:
             self.send_json(404, {"status": "error", "message": "Not found"})
             return
