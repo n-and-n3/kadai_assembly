@@ -93,20 +93,23 @@ def sandbox_command(program: Path, *args: str) -> list[str]:
     return command
 
 
-def sandbox_works(work: Path) -> bool:
+def sandbox_works(work: Path) -> tuple[bool, str]:
     if not shutil.which("bwrap"):
-        return False
+        return False, "bubblewrap (bwrap) がインストールされていません。"
     try:
         result = execute(sandbox_command(Path("/usr/bin/true")), work, "probe", timeout=2)
-        return result.code == 0
-    except (OSError, subprocess.SubprocessError):
-        return False
+        if result.code == 0:
+            return True, ""
+        return False, result.stderr.strip() or f"bwrap が終了コード {result.code} で失敗しました。"
+    except (OSError, subprocess.SubprocessError) as error:
+        return False, str(error)
 
 
 class Application:
-    def __init__(self, compiler: Path, sandbox_ready: bool):
+    def __init__(self, compiler: Path, sandbox_ready: bool, sandbox_error: str):
         self.compiler = compiler
         self.sandbox_ready = sandbox_ready
+        self.sandbox_error = sandbox_error
 
     def process(self, request: dict, run: bool) -> dict:
         source = request.get("source")
@@ -119,7 +122,9 @@ class Application:
         if not isinstance(expected, str) or len(expected.encode()) > MAX_STDIN:
             return {"status": "error", "message": "期待する出力が長すぎます。"}
         if not self.sandbox_ready:
-            return {"status": "error", "message": "実行環境の隔離が利用できません。サーバーの設定を確認してください。"}
+            return {"status": "error", "message":
+                    "実行環境の隔離が利用できません。NeoShowcase の実行権限を確認してください。"
+                    f" 詳細: {self.sandbox_error}"}
 
         with tempfile.TemporaryDirectory(prefix="n4tive-") as temp:
             work = Path(temp)
@@ -190,7 +195,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/healthz":
             self.send_json(200 if self.server.app.sandbox_ready else 503,
-                           {"status": "ok" if self.server.app.sandbox_ready else "sandbox unavailable"})
+                           {"status": "ok" if self.server.app.sandbox_ready else "sandbox unavailable",
+                            "detail": self.server.app.sandbox_error})
             return
         files = {"/": ("index.html", "text/html; charset=utf-8"),
                  "/guide": ("guide.html", "text/html; charset=utf-8"),
@@ -246,10 +252,12 @@ def main() -> None:
                             work, "build-compiler", timeout=20, memory_mb=1024)
             if built.code != 0 or built.timed_out:
                 raise SystemExit(built.stderr or "n4tive コンパイラをビルドできませんでした。")
-        ready = sandbox_works(work)
+        ready, sandbox_error = sandbox_works(work)
         server = Server((host, port), Handler)
-        server.app = Application(compiler, ready)
+        server.app = Application(compiler, ready, sandbox_error)
         print(f"n4tive: http://{host}:{port}/ (sandbox: {'ready' if ready else 'unavailable'})", flush=True)
+        if not ready:
+            print(f"n4tive: sandbox probe failed: {sandbox_error}", file=sys.stderr, flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
