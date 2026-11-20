@@ -1,5 +1,0 @@
-int c;
-c = 42;
-if(1){
-    print c;
-};

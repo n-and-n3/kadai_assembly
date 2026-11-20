@@ -1,13 +1,15 @@
+main(){
 input N;
 input K;
-rep(N){
+for(N){
     inputc x;
     if (x == 111){
         if (K > 0){
-            K--;
+            K = K - 1;
         } else {
             x = 120;
         }
     }
     printc x;
+}
 }

@@ -1,4 +1,6 @@
+main(){
 input x;
 int y;
 y = x*(x+1)/2;
 print y;
+}
